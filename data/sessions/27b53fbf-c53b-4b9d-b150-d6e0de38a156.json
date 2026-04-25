@@ -1,0 +1,21 @@
+{
+  "session_id": "27b53fbf-c53b-4b9d-b150-d6e0de38a156",
+  "created_at": "2026-04-25T21:43:53.611856+00:00",
+  "input": {
+    "raw": "Zużycie 1000 kWh, cena 1.20 zł, PV 5 kWp, produkcja PV 80 kWh",
+    "normalized": "zużycie 1000 kwh, cena 1.20 zł, pv 5 kwp, produkcja pv 80 kwh"
+  },
+  "route": {
+    "mask": "Witness_EXIM",
+    "reason": "default_mask"
+  },
+  "process": {
+    "observation": "Maska Witness_EXIM przyjęła dane wejściowe o długości 61 znaków i rozpoznała główny kontekst wypowiedzi.",
+    "hypothesis": "Tekst opisuje obserwację, zdarzenie lub stan wymagający uchwycenia faktów.",
+    "verification": "Hipoteza została zweryfikowana wstępnie na podstawie słów kluczowych, liczby tokenów (13) oraz zgodności z profilem maski Witness_EXIM.",
+    "conclusion": "Wejście zostało przetworzone przez maskę Witness_EXIM. Na podstawie obserwacji i weryfikacji system przyjmuje następującą interpretację: Tekst opisuje obserwację, zdarzenie lub stan wymagający uchwycenia faktów."
+  },
+  "output": {
+    "text": "Obserwacja: Maska Witness_EXIM przyjęła dane wejściowe o długości 61 znaków i rozpoznała główny kontekst wypowiedzi.\nHipoteza: Tekst opisuje obserwację, zdarzenie lub stan wymagający uchwycenia faktów.\nWeryfikacja: Hipoteza została zweryfikowana wstępnie na podstawie słów kluczowych, liczby tokenów (13) oraz zgodności z profilem maski Witness_EXIM.\nWniosek: Wejście zostało przetworzone przez maskę Witness_EXIM. Na podstawie obserwacji i weryfikacji system przyjmuje następującą interpretację: Tekst opisuje obserwację, zdarzenie lub stan wymagający uchwycenia faktów."
+  }
+}

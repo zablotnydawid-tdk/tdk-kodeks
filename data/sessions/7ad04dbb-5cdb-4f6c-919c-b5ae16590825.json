@@ -1,0 +1,21 @@
+{
+  "session_id": "7ad04dbb-5cdb-4f6c-919c-b5ae16590825",
+  "created_at": "2026-04-25T22:00:21.215462+00:00",
+  "input": {
+    "raw": "koszt bez PV = 1200 zł",
+    "normalized": "koszt bez pv = 1200 zł"
+  },
+  "route": {
+    "mask": "CaseReporter",
+    "reason": "matched_energy_keywords"
+  },
+  "process": {
+    "observation": "Maska CaseReporter rozpoznała zgłoszenie dotyczące obszaru energetycznego, obejmujące zużycie energii, instalację PV, pompę ciepła albo rachunki.",
+    "hypothesis": "Tekst wygląda jak zgłoszenie problemu energetycznego i może dotyczyć opłacalności PV, pracy pompy ciepła, wzrostu rachunków albo niezgodności między instalacją a realnym zużyciem energii.",
+    "verification": "Hipoteza została zweryfikowana wstępnie przez wykrycie słów kluczowych z obszaru energii (6 tokenów).\nPotrzebne dane:\n- zużycie kWh miesięcznie\n- cena 1 kWh\n- moc PV\n- miesięczna produkcja PV\nBrakuje danych do pełnego wyliczenia:\n- zużycie kWh miesięcznie\n- moc PV\n- miesięczna produkcja PV",
+    "conclusion": "Wejście zostało przetworzone jako zgłoszenie energetyczne. Do wykonania pełnej analizy brakuje następujących danych: zużycie kWh miesięcznie, moc PV, miesięczna produkcja PV."
+  },
+  "output": {
+    "text": "Obserwacja: Maska CaseReporter rozpoznała zgłoszenie dotyczące obszaru energetycznego, obejmujące zużycie energii, instalację PV, pompę ciepła albo rachunki.\nHipoteza: Tekst wygląda jak zgłoszenie problemu energetycznego i może dotyczyć opłacalności PV, pracy pompy ciepła, wzrostu rachunków albo niezgodności między instalacją a realnym zużyciem energii.\nWeryfikacja: Hipoteza została zweryfikowana wstępnie przez wykrycie słów kluczowych z obszaru energii (6 tokenów).\nPotrzebne dane:\n- zużycie kWh miesięcznie\n- cena 1 kWh\n- moc PV\n- miesięczna produkcja PV\nBrakuje danych do pełnego wyliczenia:\n- zużycie kWh miesięcznie\n- moc PV\n- miesięczna produkcja PV\nWniosek: Wejście zostało przetworzone jako zgłoszenie energetyczne. Do wykonania pełnej analizy brakuje następujących danych: zużycie kWh miesięcznie, moc PV, miesięczna produkcja PV."
+  }
+}

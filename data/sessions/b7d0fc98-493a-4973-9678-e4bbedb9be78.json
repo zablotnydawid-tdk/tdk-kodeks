@@ -1,0 +1,21 @@
+{
+  "session_id": "b7d0fc98-493a-4973-9678-e4bbedb9be78",
+  "created_at": "2026-04-25T20:41:26.011628+00:00",
+  "input": {
+    "raw": "Chcę ogarnąć problem z rachunkami za prąd zimą",
+    "normalized": "chcę ogarnąć problem z rachunkami za prąd zimą"
+  },
+  "route": {
+    "mask": "CaseReporter",
+    "reason": "matched_case_keywords"
+  },
+  "process": {
+    "observation": "Maska CaseReporter przyjęła dane wejściowe o długości 46 znaków i rozpoznała główny kontekst wypowiedzi.",
+    "hypothesis": "Tekst wygląda jak zgłoszenie sprawy, incydentu albo problemu do uporządkowania.",
+    "verification": "Hipoteza została zweryfikowana wstępnie na podstawie słów kluczowych, liczby tokenów (8) oraz zgodności z profilem maski CaseReporter.",
+    "conclusion": "Wejście zostało przetworzone przez maskę CaseReporter. Na podstawie obserwacji i weryfikacji system przyjmuje następującą interpretację: Tekst wygląda jak zgłoszenie sprawy, incydentu albo problemu do uporządkowania."
+  },
+  "output": {
+    "text": "Obserwacja: Maska CaseReporter przyjęła dane wejściowe o długości 46 znaków i rozpoznała główny kontekst wypowiedzi.\nHipoteza: Tekst wygląda jak zgłoszenie sprawy, incydentu albo problemu do uporządkowania.\nWeryfikacja: Hipoteza została zweryfikowana wstępnie na podstawie słów kluczowych, liczby tokenów (8) oraz zgodności z profilem maski CaseReporter.\nWniosek: Wejście zostało przetworzone przez maskę CaseReporter. Na podstawie obserwacji i weryfikacji system przyjmuje następującą interpretację: Tekst wygląda jak zgłoszenie sprawy, incydentu albo problemu do uporządkowania."
+  }
+}

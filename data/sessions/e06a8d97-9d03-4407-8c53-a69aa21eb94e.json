@@ -1,0 +1,21 @@
+{
+  "session_id": "e06a8d97-9d03-4407-8c53-a69aa21eb94e",
+  "created_at": "2026-04-25T22:17:35.157715+00:00",
+  "input": {
+    "raw": "Zużycie 1000 kWh, cena 1.20 zł, PV 5 kWp, produkcja PV 80 kWh",
+    "normalized": "zużycie 1000 kwh, cena 1.20 zł, pv 5 kwp, produkcja pv 80 kwh"
+  },
+  "route": {
+    "mask": "CaseReporter",
+    "reason": "matched_energy_keywords"
+  },
+  "process": {
+    "observation": "Maska CaseReporter rozpoznała zgłoszenie dotyczące obszaru energetycznego, obejmujące zużycie energii, instalację PV, pompę ciepła albo rachunki.",
+    "hypothesis": "Tekst wygląda jak zgłoszenie problemu energetycznego i może dotyczyć opłacalności PV, pracy pompy ciepła, wzrostu rachunków albo niezgodności między instalacją a realnym zużyciem energii.",
+    "verification": "Hipoteza została zweryfikowana wstępnie przez wykrycie słów kluczowych z obszaru energii (13 tokenów).\nPotrzebne dane:\n- zużycie kWh miesięcznie\n- cena 1 kWh\n- moc PV\n- miesięczna produkcja PV\nObliczenia:\n- koszt bez PV = 1200.0 zł\n- koszt po PV = 1104.0 zł\n- oszczędność = 96.0 zł\n- interpretacja = umiarkowana efektywność",
+    "conclusion": "Wejście zostało przetworzone jako zgłoszenie energetyczne. Szacowany koszt bez PV to 1200.0 zł, koszt po PV to 1104.0 zł, oszczędność wynosi 96.0 zł. Ocena wyniku: umiarkowana efektywność."
+  },
+  "output": {
+    "text": "Obserwacja: Maska CaseReporter rozpoznała zgłoszenie dotyczące obszaru energetycznego, obejmujące zużycie energii, instalację PV, pompę ciepła albo rachunki.\nHipoteza: Tekst wygląda jak zgłoszenie problemu energetycznego i może dotyczyć opłacalności PV, pracy pompy ciepła, wzrostu rachunków albo niezgodności między instalacją a realnym zużyciem energii.\nWeryfikacja: Hipoteza została zweryfikowana wstępnie przez wykrycie słów kluczowych z obszaru energii (13 tokenów).\nPotrzebne dane:\n- zużycie kWh miesięcznie\n- cena 1 kWh\n- moc PV\n- miesięczna produkcja PV\nObliczenia:\n- koszt bez PV = 1200.0 zł\n- koszt po PV = 1104.0 zł\n- oszczędność = 96.0 zł\n- interpretacja = umiarkowana efektywność\nWniosek: Wejście zostało przetworzone jako zgłoszenie energetyczne. Szacowany koszt bez PV to 1200.0 zł, koszt po PV to 1104.0 zł, oszczędność wynosi 96.0 zł. Ocena wyniku: umiarkowana efektywność."
+  }
+}

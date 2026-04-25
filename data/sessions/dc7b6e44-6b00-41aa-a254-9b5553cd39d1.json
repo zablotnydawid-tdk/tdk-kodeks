@@ -1,0 +1,21 @@
+{
+  "session_id": "dc7b6e44-6b00-41aa-a254-9b5553cd39d1",
+  "created_at": "2026-04-25T22:01:14.167053+00:00",
+  "input": {
+    "raw": "Zużycie 1000 kWh, cena 1.20 zł, PV 5 kWp, produkcja PV 80 kWh",
+    "normalized": "zużycie 1000 kwh, cena 1.20 zł, pv 5 kwp, produkcja pv 80 kwh"
+  },
+  "route": {
+    "mask": "CaseReporter",
+    "reason": "matched_energy_keywords"
+  },
+  "process": {
+    "observation": "Maska CaseReporter rozpoznała zgłoszenie dotyczące obszaru energetycznego, obejmujące zużycie energii, instalację PV, pompę ciepła albo rachunki.",
+    "hypothesis": "Tekst wygląda jak zgłoszenie problemu energetycznego i może dotyczyć opłacalności PV, pracy pompy ciepła, wzrostu rachunków albo niezgodności między instalacją a realnym zużyciem energii.",
+    "verification": "Hipoteza została zweryfikowana wstępnie przez wykrycie słów kluczowych z obszaru energii (13 tokenów).\nPotrzebne dane:\n- zużycie kWh miesięcznie\n- cena 1 kWh\n- moc PV\n- miesięczna produkcja PV\nBrakuje danych do pełnego wyliczenia:\n- miesięczna produkcja PV",
+    "conclusion": "Wejście zostało przetworzone jako zgłoszenie energetyczne. Do wykonania pełnej analizy brakuje następujących danych: miesięczna produkcja PV."
+  },
+  "output": {
+    "text": "Obserwacja: Maska CaseReporter rozpoznała zgłoszenie dotyczące obszaru energetycznego, obejmujące zużycie energii, instalację PV, pompę ciepła albo rachunki.\nHipoteza: Tekst wygląda jak zgłoszenie problemu energetycznego i może dotyczyć opłacalności PV, pracy pompy ciepła, wzrostu rachunków albo niezgodności między instalacją a realnym zużyciem energii.\nWeryfikacja: Hipoteza została zweryfikowana wstępnie przez wykrycie słów kluczowych z obszaru energii (13 tokenów).\nPotrzebne dane:\n- zużycie kWh miesięcznie\n- cena 1 kWh\n- moc PV\n- miesięczna produkcja PV\nBrakuje danych do pełnego wyliczenia:\n- miesięczna produkcja PV\nWniosek: Wejście zostało przetworzone jako zgłoszenie energetyczne. Do wykonania pełnej analizy brakuje następujących danych: miesięczna produkcja PV."
+  }
+}

@@ -1,0 +1,21 @@
+{
+  "session_id": "7e8cc091-589b-4e94-8fcf-d6bda57d32ca",
+  "created_at": "2026-04-25T21:08:24.169711+00:00",
+  "input": {
+    "raw": "Chcę ogarnąć problem z rachunkami za prąd zimą",
+    "normalized": "chcę ogarnąć problem z rachunkami za prąd zimą"
+  },
+  "route": {
+    "mask": "CaseReporter",
+    "reason": "matched_case_keywords"
+  },
+  "process": {
+    "observation": "Maska CaseReporter rozpoznała problem energetyczny: rachunki, zużycie prądu, PV lub pompę ciepła.",
+    "hypothesis": "Problem najpewniej dotyczy bilansu energii: wysokiego zużycia, niskiej produkcji zimą lub nieoptymalnej taryfy.",
+    "verification": "Hipoteza została zweryfikowana po słowach energetycznych oraz liczbie tokenów (8). System wykrył kontekst: energia/PV/pompa ciepła/rachunki.",
+    "conclusion": "Wniosek: wejście dotyczy problemu energetycznego. KODEKS powinien zebrać dane: zużycie kWh, taryfę, źródło ogrzewania, PV, magazyn energii i okres rozliczenia."
+  },
+  "output": {
+    "text": "Obserwacja: Maska CaseReporter rozpoznała problem energetyczny: rachunki, zużycie prądu, PV lub pompę ciepła.\nHipoteza: Problem najpewniej dotyczy bilansu energii: wysokiego zużycia, niskiej produkcji zimą lub nieoptymalnej taryfy.\nWeryfikacja: Hipoteza została zweryfikowana po słowach energetycznych oraz liczbie tokenów (8). System wykrył kontekst: energia/PV/pompa ciepła/rachunki.\nWniosek: Wniosek: wejście dotyczy problemu energetycznego. KODEKS powinien zebrać dane: zużycie kWh, taryfę, źródło ogrzewania, PV, magazyn energii i okres rozliczenia."
+  }
+}
