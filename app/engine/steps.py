@@ -1,25 +1,8 @@
 ENERGY_KEYWORDS = (
-    "energia",
-    "energetyczny",
-    "energetyczna",
-    "prąd",
-    "pv",
-    "fotowoltaika",
-    "fotowoltaiczna",
-    "pompa ciepła",
-    "rachunki",
-    "rachunek",
-    "zużycie",
-    "zuzycie",
-    "kwh",
-    "kwp",
-    "kw",
-    "zł",
-    "zl",
-    "taryfa",
-    "moc",
-    "produkcja",
-    "cena",
+    "energia", "energetyczny", "energetyczna", "prąd", "pv",
+    "fotowoltaika", "fotowoltaiczna", "pompa ciepła", "rachunki",
+    "rachunek", "zużycie", "zuzycie", "kwh", "kwp", "kw",
+    "zł", "zl", "taryfa", "moc", "produkcja", "cena",
 )
 
 
@@ -36,35 +19,30 @@ def _tokenize_numbers(normalized_text: str) -> list[str]:
 
 
 def _parse_float(token: str) -> float | None:
-    cleaned = token.strip()
     try:
-        return float(cleaned)
+        return float(token.strip())
     except ValueError:
         return None
 
 
 def extract_number_before_keyword(normalized_text: str, keywords: tuple[str, ...]) -> float | None:
     tokens = _tokenize_numbers(normalized_text)
-
     for index, token in enumerate(tokens):
         if token in keywords and index > 0:
             value = _parse_float(tokens[index - 1])
             if value is not None:
                 return value
-
     return None
 
 
 def extract_number_after_keyword(normalized_text: str, keywords: tuple[str, ...]) -> float | None:
     tokens = _tokenize_numbers(normalized_text)
-
     for index, token in enumerate(tokens):
         if token in keywords:
             for next_token in tokens[index + 1:index + 4]:
                 value = _parse_float(next_token)
                 if value is not None:
                     return value
-
     return None
 
 
@@ -73,17 +51,14 @@ def extract_energy_data(normalized_text: str) -> dict:
         extract_number_after_keyword(normalized_text, ("zużycie", "zuzycie"))
         or extract_number_before_keyword(normalized_text, ("kwh",))
     )
-
     price_per_kwh = (
         extract_number_after_keyword(normalized_text, ("cena",))
         or extract_number_before_keyword(normalized_text, ("zł", "zl"))
     )
-
     pv_power_kw = (
         extract_number_after_keyword(normalized_text, ("moc", "pv"))
         or extract_number_before_keyword(normalized_text, ("kw", "kwp"))
     )
-
     pv_monthly_production_kwh = (
         extract_number_after_keyword(normalized_text, ("produkcja",))
         or extract_number_before_keyword(normalized_text, ("kwh",))
@@ -103,7 +78,6 @@ def calculate_energy_case(data: dict) -> dict | None:
         data["price_per_kwh"],
         data["pv_monthly_production_kwh"],
     )
-
     if any(value is None for value in required_values):
         return None
 
@@ -126,9 +100,16 @@ def classify_energy_savings(savings: float) -> str:
     return "wysoka efektywność"
 
 
+def build_energy_recommendation(efficiency: str) -> str:
+    if efficiency == "niska efektywność":
+        return "Zalecenie: rozważ zmianę taryfy lub optymalizację zużycia."
+    if efficiency == "umiarkowana efektywność":
+        return "Zalecenie: rozważ poprawę autokonsumpcji lub sterowania."
+    return "Zalecenie: system działa dobrze."
+
+
 def missing_energy_fields(data: dict) -> list[str]:
     missing = []
-
     if data["consumption_kwh"] is None:
         missing.append("zużycie kWh miesięcznie")
     if data["price_per_kwh"] is None:
@@ -137,7 +118,6 @@ def missing_energy_fields(data: dict) -> list[str]:
         missing.append("moc PV")
     if data["pv_monthly_production_kwh"] is None:
         missing.append("miesięczna produkcja PV")
-
     return missing
 
 
@@ -195,6 +175,7 @@ def build_verification(normalized_text: str, selected_mask: str, hypothesis: str
 
         if calculations is not None:
             efficiency = classify_energy_savings(calculations["savings"])
+            recommendation = build_energy_recommendation(efficiency)
             lines.extend(
                 [
                     "Obliczenia:",
@@ -202,6 +183,7 @@ def build_verification(normalized_text: str, selected_mask: str, hypothesis: str
                     f"- koszt po PV = {calculations['cost_after_pv']} zł",
                     f"- oszczędność = {calculations['savings']} zł",
                     f"- interpretacja = {efficiency}",
+                    f"- {recommendation}",
                 ]
             )
         else:
@@ -231,12 +213,14 @@ def build_conclusion(
 
         if calculations is not None:
             efficiency = classify_energy_savings(calculations["savings"])
+            recommendation = build_energy_recommendation(efficiency)
             return (
                 "Wejście zostało przetworzone jako zgłoszenie energetyczne. "
                 f"Szacowany koszt bez PV to {calculations['cost_without_pv']} zł, "
                 f"koszt po PV to {calculations['cost_after_pv']} zł, "
                 f"oszczędność wynosi {calculations['savings']} zł. "
-                f"Ocena wyniku: {efficiency}."
+                f"Ocena wyniku: {efficiency}. "
+                f"{recommendation}"
             )
 
         return (

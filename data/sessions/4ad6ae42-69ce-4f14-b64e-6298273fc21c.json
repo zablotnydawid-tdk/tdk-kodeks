@@ -1,0 +1,21 @@
+{
+  "session_id": "4ad6ae42-69ce-4f14-b64e-6298273fc21c",
+  "created_at": "2026-04-25T22:27:18.323609+00:00",
+  "input": {
+    "raw": "rozpoznanie → obliczenie → interpretację → wniosek → zapis sesji",
+    "normalized": "rozpoznanie → obliczenie → interpretację → wniosek → zapis sesji"
+  },
+  "route": {
+    "mask": "Witness_EXIM",
+    "reason": "default_mask"
+  },
+  "process": {
+    "observation": "Maska Witness_EXIM przyjęła dane wejściowe o długości 64 znaków i rozpoznała główny kontekst wypowiedzi.",
+    "hypothesis": "Tekst opisuje obserwację, zdarzenie lub stan wymagający uchwycenia faktów.",
+    "verification": "Hipoteza została zweryfikowana wstępnie na podstawie słów kluczowych, liczby tokenów (10) oraz zgodności z profilem maski Witness_EXIM.",
+    "conclusion": "Wejście zostało przetworzone przez maskę Witness_EXIM. Na podstawie obserwacji i weryfikacji system przyjmuje następującą interpretację: Tekst opisuje obserwację, zdarzenie lub stan wymagający uchwycenia faktów."
+  },
+  "output": {
+    "text": "Obserwacja: Maska Witness_EXIM przyjęła dane wejściowe o długości 64 znaków i rozpoznała główny kontekst wypowiedzi.\nHipoteza: Tekst opisuje obserwację, zdarzenie lub stan wymagający uchwycenia faktów.\nWeryfikacja: Hipoteza została zweryfikowana wstępnie na podstawie słów kluczowych, liczby tokenów (10) oraz zgodności z profilem maski Witness_EXIM.\nWniosek: Wejście zostało przetworzone przez maskę Witness_EXIM. Na podstawie obserwacji i weryfikacji system przyjmuje następującą interpretację: Tekst opisuje obserwację, zdarzenie lub stan wymagający uchwycenia faktów."
+  }
+}
