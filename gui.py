@@ -40,9 +40,16 @@ def analyze_text() -> None:
     result_text.configure(state="disabled")
 
 
+def clear_fields() -> None:
+    input_text.delete("1.0", tk.END)
+    result_text.configure(state="normal")
+    result_text.delete("1.0", tk.END)
+    result_text.configure(state="disabled")
+
+
 root = tk.Tk()
-root.title("KODEKS")
-root.geometry("900x650")
+root.title("KODEKS – Analiza energii")
+root.geometry("900x720")
 
 main_frame = tk.Frame(root, padx=12, pady=12)
 main_frame.pack(fill=tk.BOTH, expand=True)
@@ -53,8 +60,23 @@ input_label.pack(anchor="w")
 input_text = tk.Text(main_frame, height=10, wrap=tk.WORD)
 input_text.pack(fill=tk.BOTH, expand=True, pady=(4, 10))
 
-analyze_button = tk.Button(main_frame, text="Analizuj", command=analyze_text)
-analyze_button.pack(anchor="w", pady=(0, 10))
+button_frame = tk.Frame(main_frame)
+button_frame.pack(anchor="w", pady=(0, 10))
+
+analyze_button = tk.Button(button_frame, text="Analizuj", command=analyze_text)
+analyze_button.pack(side=tk.LEFT)
+
+clear_button = tk.Button(button_frame, text="Wyczyść", command=clear_fields)
+clear_button.pack(side=tk.LEFT, padx=(8, 0))
+
+result_label = tk.Label(main_frame, text="Wynik")
+result_label.pack(anchor="w")
+
+result_text = tk.Text(main_frame, height=24, wrap=tk.WORD, state="disabled")
+result_text.pack(fill=tk.BOTH, expand=True, pady=(4, 0))
+
+root.mainloop()
+
 
 result_label = tk.Label(main_frame, text="Wynik")
 result_label.pack(anchor="w")
