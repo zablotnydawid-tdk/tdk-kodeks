@@ -1,1 +1,3 @@
 data/sessions/*.json
+__pycache__/
+*.pyc
