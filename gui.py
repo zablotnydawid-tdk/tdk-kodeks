@@ -5,7 +5,7 @@ from tkinter import messagebox
 
 from app.engine.process_engine import run_process
 from app.input.normalizer import normalize_input
-from app.output.presenter import render_output
+from app.output.report_builder import build_report
 from app.routing.mask_router import choose_mask
 from app.session.store import save_session
 
@@ -24,7 +24,11 @@ def analyze_text() -> None:
         normalized = normalize_input(raw_text)
         selected_mask, route_reason = choose_mask(normalized)
         process_result = run_process(normalized, selected_mask)
-        output_text = render_output(process_result)
+        output_text = build_report(
+            raw_input=raw_text,
+            selected_mask=selected_mask,
+            process_result=process_result,
+        )
         session_path = save_session(
             raw_input=raw_text,
             normalized_input=normalized,
