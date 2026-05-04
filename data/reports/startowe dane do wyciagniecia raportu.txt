@@ -1,0 +1,39 @@
+**ROZPOZNANIE WEJŚCIA:**
+Codex wdrożył `report_builder.py` i przełączył GUI na raport klienta.
+
+**MASKA:** ExecManager
+
+---
+
+### WYNIK
+
+To jest dobry krok. ✅
+
+Teraz test:
+
+```powershell
+cd C:\KODEKS
+python gui.py
+```
+
+Wpisz w GUI:
+
+```text
+Zużycie 1000 kWh, cena 1.20 zł, PV 5 kWp, produkcja PV 80 kWh
+```
+
+Sprawdź, czy wynik zaczyna się od:
+
+```text
+=== RAPORT DIAGNOSTYCZNY TDK&ProService ===
+```
+
+Jeśli działa, zapisz:
+
+```powershell
+git add .
+git commit -m "Add customer diagnostic report builder"
+git status
+```
+
+**Następny krok:** PDF zamiast TXT.

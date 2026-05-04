@@ -5,6 +5,7 @@ from tkinter import messagebox
 
 from app.engine.process_engine import run_process
 from app.input.normalizer import normalize_input
+from app.output.pdf_builder import generate_pdf
 from app.output.report_builder import build_report
 from app.routing.mask_router import choose_mask
 from app.session.store import save_session
@@ -24,11 +25,20 @@ def analyze_text() -> None:
         normalized = normalize_input(raw_text)
         selected_mask, route_reason = choose_mask(normalized)
         process_result = run_process(normalized, selected_mask)
+
         output_text = build_report(
             raw_input=raw_text,
             selected_mask=selected_mask,
             process_result=process_result,
         )
+
+        reports_dir = PROJECT_DIR / "data" / "reports"
+        reports_dir.mkdir(parents=True, exist_ok=True)
+
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        pdf_path = reports_dir / f"raport_{timestamp}.pdf"
+        generate_pdf(output_text, str(pdf_path))
+
         session_path = save_session(
             raw_input=raw_text,
             normalized_input=normalized,
@@ -44,7 +54,7 @@ def analyze_text() -> None:
     result_text.configure(state="normal")
     result_text.delete("1.0", tk.END)
     result_text.insert(tk.END, output_text)
-    result_text.insert(tk.END, f"\n\nMaska: {selected_mask}")
+    result_text.insert(tk.END, f"\n\nPDF: {pdf_path}")
     result_text.insert(tk.END, f"\nZapis sesji: {session_path}")
     result_text.configure(state="disabled")
 
@@ -70,7 +80,7 @@ def save_report() -> None:
     report_path = reports_dir / f"raport_{timestamp}.txt"
     report_path.write_text(report_content, encoding="utf-8")
 
-    messagebox.showinfo("KODEKS", f"Raport zapisany:\n{report_path}")
+    messagebox.showinfo("KODEKS", f"Raport TXT zapisany:\n{report_path}")
 
 
 root = tk.Tk()
@@ -95,7 +105,7 @@ analyze_button.pack(side=tk.LEFT)
 clear_button = tk.Button(button_frame, text="Wyczyść", command=clear_fields)
 clear_button.pack(side=tk.LEFT, padx=(8, 0))
 
-save_report_button = tk.Button(button_frame, text="Zapisz raport", command=save_report)
+save_report_button = tk.Button(button_frame, text="Zapisz TXT", command=save_report)
 save_report_button.pack(side=tk.LEFT, padx=(8, 0))
 
 result_label = tk.Label(main_frame, text="Wynik")

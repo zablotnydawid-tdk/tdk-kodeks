@@ -1,0 +1,38 @@
+=== RAPORT WSTĘPNEJ ANALIZY ENERGII TDK&ProService ===
+
+1. DANE DO ANALIZY
+- Zużycie miesięczne: 1000 kWh
+- Cena energii: 1.2 zł/kWh
+- Moc instalacji PV: 5 kWp
+- Miesięczna produkcja PV: 80 kWh
+
+2. WYNIK OBLICZEŃ
+- Koszt bez PV: 1200 zł
+- Koszt po PV: 1104 zł
+- Oszczędność miesięczna: 96 zł
+
+3. INTERPRETACJA
+- Poziom efektywności: umiarkowana efektywność
+- Znaczenie dla klienta: System daje zauważalny efekt, ale nadal może mieć rezerwę w autokonsumpcji i sterowaniu zużyciem.
+
+4. CO MOŻE BYĆ PROBLEMEM
+- Zbyt mała autokonsumpcja energii z PV w godzinach produkcji.
+- Taryfa lub sposób rozliczania niedopasowane do profilu zużycia.
+- Konfiguracja falownika, pompy ciepła lub sterowania może wymagać korekty.
+- Warto sprawdzić, czy magazyn energii lub zmiana harmonogramu pracy urządzeń poprawi wykorzystanie PV.
+
+5. ZALECENIE
+Największy sens ma poprawa autokonsumpcji, sterowania urządzeniami oraz dopasowania pracy instalacji do codziennego zużycia.
+
+6. NASTĘPNY KROK
+- Ostatnia faktura za energię.
+- Dane z aplikacji falownika lub licznika produkcji.
+- Informacja o taryfie i sposobie rozliczania prosumenta.
+- Informacja, czy w budynku pracuje pompa ciepła lub magazyn energii.
+
+7. KONTAKT
+TDK&ProService
+kontakt@tdkproservice.pl
+
+PDF: C:\KODEKS\data\reports\raport_20260504_141132.pdf
+Zapis sesji: data\sessions\2c8cd302-8840-422c-9a40-67db42299961.json
