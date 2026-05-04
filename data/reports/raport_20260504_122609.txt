@@ -1,0 +1,18 @@
+Obserwacja: Maska CaseReporter rozpoznała zgłoszenie dotyczące obszaru energetycznego, obejmujące zużycie energii, instalację PV, pompę ciepła albo rachunki.
+Hipoteza: Tekst wygląda jak zgłoszenie problemu energetycznego i może dotyczyć opłacalności PV, pracy pompy ciepła, wzrostu rachunków albo niezgodności między instalacją a realnym zużyciem energii.
+Weryfikacja: Hipoteza została zweryfikowana wstępnie przez wykrycie słów kluczowych z obszaru energii (13 tokenów).
+Potrzebne dane:
+- zużycie kWh miesięcznie
+- cena 1 kWh
+- moc PV
+- miesięczna produkcja PV
+Obliczenia:
+- koszt bez PV = 1200.0 zł
+- koszt po PV = 1104.0 zł
+- oszczędność = 96.0 zł
+- interpretacja = umiarkowana efektywność
+- Zalecenie: rozważ poprawę autokonsumpcji lub sterowania.
+Wniosek: Wejście zostało przetworzone jako zgłoszenie energetyczne. Szacowany koszt bez PV to 1200.0 zł, koszt po PV to 1104.0 zł, oszczędność wynosi 96.0 zł. Ocena wyniku: umiarkowana efektywność. Zalecenie: rozważ poprawę autokonsumpcji lub sterowania.
+
+Maska: CaseReporter
+Zapis sesji: data\sessions\13894456-b8a1-4c0c-a921-8285163145cd.json
