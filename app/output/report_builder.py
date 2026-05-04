@@ -32,6 +32,8 @@ def build_report(raw_input: str, selected_mask: str, process_result: dict) -> st
             "7. KONTAKT",
             "TDK&ProService",
             "kontakt@tdkproservice.pl",
+            "",
+            _build_cta(),
         ]
     )
 
@@ -59,6 +61,7 @@ def _extract_energy_data(raw_input: str) -> dict:
         "pv_power_kw": _find_number(
             text,
             (
+                r"pv\s+(\d+(?:\.\d+)?)",
                 r"moc\s+(\d+(?:\.\d+)?)",
                 r"(\d+(?:\.\d+)?)\s*kwp",
                 r"(\d+(?:\.\d+)?)\s*kw",
@@ -72,6 +75,8 @@ def _extract_energy_data(raw_input: str) -> dict:
             ),
         ),
     }
+
+
 def _extract_calculations(process_result: dict) -> dict:
     direct = process_result.get("calculations")
     if isinstance(direct, dict):
@@ -82,15 +87,24 @@ def _extract_calculations(process_result: dict) -> dict:
     return {
         "cost_without_pv": _find_number(
             text,
-            (r"koszt bez pv\s*=\s*(\d+(?:\.\d+)?)", r"koszt bez pv to\s+(\d+(?:\.\d+)?)"),
+            (
+                r"koszt bez pv\s*=\s*(\d+(?:\.\d+)?)",
+                r"koszt bez pv to\s+(\d+(?:\.\d+)?)",
+            ),
         ),
         "cost_after_pv": _find_number(
             text,
-            (r"koszt po pv\s*=\s*(\d+(?:\.\d+)?)", r"koszt po pv to\s+(\d+(?:\.\d+)?)"),
+            (
+                r"koszt po pv\s*=\s*(\d+(?:\.\d+)?)",
+                r"koszt po pv to\s+(\d+(?:\.\d+)?)",
+            ),
         ),
         "savings": _find_number(
             text,
-            (r"oszczędność\s*=\s*(\d+(?:\.\d+)?)", r"oszczędność wynosi\s+(\d+(?:\.\d+)?)"),
+            (
+                r"oszczędność\s*=\s*(\d+(?:\.\d+)?)",
+                r"oszczędność wynosi\s+(\d+(?:\.\d+)?)",
+            ),
         ),
     }
 
@@ -110,12 +124,28 @@ def _extract_efficiency(process_result: dict) -> str | None:
 
 def _build_recommendation(efficiency: str | None) -> str:
     if efficiency == "niska efektywność":
-        return "W pierwszej kolejności warto sprawdzić taryfę, profil zużycia oraz godziny pracy największych odbiorników energii."
+        return (
+            "W pierwszej kolejności warto sprawdzić taryfę, profil zużycia oraz godziny pracy "
+            "największych odbiorników energii."
+        )
+
     if efficiency == "umiarkowana efektywność":
-        return "Największy sens ma poprawa autokonsumpcji, sterowania urządzeniami oraz dopasowania pracy instalacji do codziennego zużycia."
+        return (
+            "Największy sens ma poprawa autokonsumpcji, sterowania urządzeniami oraz dopasowania "
+            "pracy instalacji do codziennego zużycia."
+        )
+
     if efficiency == "wysoka efektywność":
-        return "Obecny wynik wskazuje, że instalacja pracuje korzystnie. Warto jedynie okresowo kontrolować produkcję, zużycie i rozliczenia."
-    return "Do rzetelnej rekomendacji potrzebne jest uzupełnienie danych o zużyciu, cenie energii, mocy PV i miesięcznej produkcji."
+        return (
+            "Wstępny wynik jest korzystny, jednak aby potwierdzić rzeczywistą efektywność "
+            "i wykluczyć ukryte straty, zalecana jest pełna analiza techniczna oparta "
+            "na danych rzeczywistych."
+        )
+
+    return (
+        "Do rzetelnej rekomendacji potrzebne jest uzupełnienie danych o zużyciu, cenie energii, "
+        "mocy PV i miesięcznej produkcji."
+    )
 
 
 def _format_input_data(data: dict) -> list[str]:
@@ -137,13 +167,26 @@ def _format_calculations(calculations: dict) -> list[str]:
 
 def _format_interpretation(efficiency: str | None) -> list[str]:
     if efficiency == "niska efektywność":
-        meaning = "Oszczędność jest niewielka, więc instalacja lub sposób korzystania z energii prawdopodobnie wymaga korekty."
+        meaning = (
+            "Oszczędność jest niewielka, więc instalacja lub sposób korzystania z energii "
+            "prawdopodobnie wymaga korekty."
+        )
     elif efficiency == "umiarkowana efektywność":
-        meaning = "System daje zauważalny efekt, ale nadal może mieć rezerwę w autokonsumpcji i sterowaniu zużyciem."
+        meaning = (
+            "System daje zauważalny efekt, ale nadal może mieć rezerwę w autokonsumpcji "
+            "i sterowaniu zużyciem."
+        )
     elif efficiency == "wysoka efektywność":
-        meaning = "Wynik jest korzystny i wskazuje, że instalacja dobrze obniża miesięczne koszty energii."
+        meaning = (
+            "Wynik jest korzystny, jednak opiera się wyłącznie na danych wstępnych. "
+            "W praktyce wiele instalacji osiąga podobne wyniki, a jednocześnie generuje "
+            "straty wynikające z konfiguracji, autokonsumpcji lub sposobu rozliczania."
+        )
     else:
-        meaning = "Brakuje kompletu danych, dlatego wynik należy traktować jako wstępny i wymagający doprecyzowania."
+        meaning = (
+            "Brakuje kompletu danych, dlatego wynik należy traktować jako wstępny "
+            "i wymagający doprecyzowania."
+        )
 
     return [
         f"- Poziom efektywności: {efficiency or 'nieokreślony'}",
@@ -161,13 +204,17 @@ def _build_possible_causes(efficiency: str | None, data: dict) -> list[str]:
     if data.get("pv_monthly_production_kwh") is None:
         causes.append("- Brak danych o produkcji PV utrudnia ocenę realnej pracy instalacji.")
     elif efficiency in ("niska efektywność", "umiarkowana efektywność"):
-        causes.append("- Warto sprawdzić, czy magazyn energii lub zmiana harmonogramu pracy urządzeń poprawi wykorzystanie PV.")
+        causes.append(
+            "- Warto sprawdzić, czy magazyn energii lub zmiana harmonogramu pracy urządzeń "
+            "poprawi wykorzystanie PV."
+        )
 
     return causes[:4]
 
 
 def _build_next_steps(data: dict) -> list[str]:
     missing = []
+
     if data.get("consumption_kwh") is None:
         missing.append("- Miesięczne zużycie energii w kWh.")
     if data.get("price_per_kwh") is None:
@@ -188,6 +235,14 @@ def _build_next_steps(data: dict) -> list[str]:
         return ["Dane do uzupełnienia:", *missing, "Dane pomocnicze:", *base]
 
     return base
+
+
+def _build_cta() -> str:
+    return (
+        "Jeśli chcesz sprawdzić, czy instalacja rzeczywiście pracuje optymalnie "
+        "i czy nie generuje ukrytych strat, skontaktuj się z TDK&ProService.\n"
+        "Analiza wykonywana jest indywidualnie na podstawie danych rzeczywistych."
+    )
 
 
 def _find_number(text: str, patterns: tuple[str, ...]) -> float | None:
