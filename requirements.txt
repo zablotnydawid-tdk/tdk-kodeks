@@ -1,5 +1,6 @@
 fastapi
-uvicorn
+uvicorn[standard]
 reportlab
 python-dotenv
 python-multipart
+pydantic

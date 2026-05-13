@@ -1,1 +1,0 @@
-# KODEKS application package
