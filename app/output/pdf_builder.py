@@ -3,7 +3,7 @@ from pathlib import Path
 from reportlab.lib import colors
 from reportlab.lib.enums import TA_CENTER, TA_LEFT
 from reportlab.lib.pagesizes import A4
-from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
+from reportlab.lib.styles import ParagraphStyle
 from reportlab.lib.units import mm
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
@@ -16,17 +16,36 @@ from reportlab.platypus import (
 )
 
 
-FONT_PATH = r"C:\Windows\Fonts\arial.ttf"
-FONT_BOLD_PATH = r"C:\Windows\Fonts\arialbd.ttf"
+FONT_CANDIDATES = [
+    {
+        "regular": r"C:\Windows\Fonts\arial.ttf",
+        "bold": r"C:\Windows\Fonts\arialbd.ttf",
+        "regular_name": "Arial",
+        "bold_name": "Arial-Bold",
+    },
+    {
+        "regular": "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+        "bold": "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
+        "regular_name": "DejaVuSans",
+        "bold_name": "DejaVuSans-Bold",
+    },
+]
 
-try:
-    pdfmetrics.registerFont(TTFont("Arial", FONT_PATH))
-    pdfmetrics.registerFont(TTFont("Arial-Bold", FONT_BOLD_PATH))
-    BASE_FONT = "Arial"
-    BOLD_FONT = "Arial-Bold"
-except Exception:
-    BASE_FONT = "Helvetica"
-    BOLD_FONT = "Helvetica-Bold"
+
+def _register_fonts() -> tuple[str, str]:
+    for font in FONT_CANDIDATES:
+        regular = Path(font["regular"])
+        bold = Path(font["bold"])
+
+        if regular.exists() and bold.exists():
+            pdfmetrics.registerFont(TTFont(font["regular_name"], str(regular)))
+            pdfmetrics.registerFont(TTFont(font["bold_name"], str(bold)))
+            return font["regular_name"], font["bold_name"]
+
+    return "Helvetica", "Helvetica-Bold"
+
+
+BASE_FONT, BOLD_FONT = _register_fonts()
 
 
 def generate_pdf(report_text: str, output_path: str) -> str:
@@ -105,14 +124,6 @@ def _build_styles() -> dict:
             textColor=colors.HexColor("#111827"),
             alignment=TA_LEFT,
         ),
-        "small": ParagraphStyle(
-            "small",
-            fontName=BASE_FONT,
-            fontSize=8.5,
-            leading=12,
-            textColor=colors.HexColor("#5b6472"),
-            alignment=TA_LEFT,
-        ),
         "cta": ParagraphStyle(
             "cta",
             fontName=BOLD_FONT,
@@ -120,14 +131,6 @@ def _build_styles() -> dict:
             leading=14,
             textColor=colors.HexColor("#0f172a"),
             alignment=TA_LEFT,
-        ),
-        "center_small": ParagraphStyle(
-            "center_small",
-            fontName=BASE_FONT,
-            fontSize=8,
-            leading=10,
-            textColor=colors.HexColor("#7d8796"),
-            alignment=TA_CENTER,
         ),
     }
 
@@ -145,7 +148,6 @@ def _build_header(styles: dict) -> list:
     ]
 
     table = Table(header_content, colWidths=[174 * mm])
-
     table.setStyle(
         TableStyle(
             [
@@ -166,7 +168,7 @@ def _build_section(title: str, lines: list[str], styles: dict) -> list:
     elements = []
 
     title_table = Table(
-        [[Paragraph(title, styles["section_title"])]],
+        [[Paragraph(_escape(title), styles["section_title"])]],
         colWidths=[174 * mm],
     )
 
@@ -186,13 +188,10 @@ def _build_section(title: str, lines: list[str], styles: dict) -> list:
     elements.append(title_table)
 
     body_rows = []
-
     for line in lines:
         clean = line.strip()
-        if not clean:
-            continue
-
-        body_rows.append([Paragraph(_escape(clean), styles["body"])])
+        if clean:
+            body_rows.append([Paragraph(_escape(clean), styles["body"])])
 
     if body_rows:
         body_table = Table(body_rows, colWidths=[174 * mm])
@@ -205,7 +204,12 @@ def _build_section(title: str, lines: list[str], styles: dict) -> list:
                     ("RIGHTPADDING", (0, 0), (-1, -1), 10),
                     ("TOPPADDING", (0, 0), (-1, -1), 5),
                     ("BOTTOMPADDING", (0, 0), (-1, -1), 5),
-                    ("ROWBACKGROUNDS", (0, 0), (-1, -1), [colors.HexColor("#ffffff"), colors.HexColor("#f4f7fb")]),
+                    (
+                        "ROWBACKGROUNDS",
+                        (0, 0),
+                        (-1, -1),
+                        [colors.HexColor("#ffffff"), colors.HexColor("#f4f7fb")],
+                    ),
                 ]
             )
         )
@@ -282,17 +286,7 @@ def _parse_report_sections(report_text: str) -> list[tuple[str, list[str]]]:
 
 
 def _is_section_title(line: str) -> bool:
-    prefixes = (
-        "1.",
-        "2.",
-        "3.",
-        "4.",
-        "5.",
-        "6.",
-        "7.",
-    )
-
-    return line.startswith(prefixes)
+    return line.startswith(("1.", "2.", "3.", "4.", "5.", "6.", "7."))
 
 
 def _escape(text: str) -> str:
