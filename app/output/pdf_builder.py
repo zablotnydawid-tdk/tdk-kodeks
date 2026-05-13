@@ -1,124 +1,318 @@
 from pathlib import Path
-from xml.sax.saxutils import escape
 
+from reportlab.lib import colors
+from reportlab.lib.enums import TA_CENTER, TA_LEFT
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
+from reportlab.lib.units import mm
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
-from reportlab.platypus import HRFlowable, Paragraph, SimpleDocTemplate, Spacer
+from reportlab.platypus import (
+    SimpleDocTemplate,
+    Paragraph,
+    Spacer,
+    Table,
+    TableStyle,
+)
 
 
-FONT_NAME = "ArialUnicode"
 FONT_PATH = r"C:\Windows\Fonts\arial.ttf"
-DEFAULT_TITLE = "RAPORT ANALIZY ENERGII – TDK&ProService"
-BRAND_LINE = "TDK&ProService – Diagnostyka OZE"
+FONT_BOLD_PATH = r"C:\Windows\Fonts\arialbd.ttf"
+
+try:
+    pdfmetrics.registerFont(TTFont("Arial", FONT_PATH))
+    pdfmetrics.registerFont(TTFont("Arial-Bold", FONT_BOLD_PATH))
+    BASE_FONT = "Arial"
+    BOLD_FONT = "Arial-Bold"
+except Exception:
+    BASE_FONT = "Helvetica"
+    BOLD_FONT = "Helvetica-Bold"
 
 
 def generate_pdf(report_text: str, output_path: str) -> str:
-    Path(output_path).parent.mkdir(parents=True, exist_ok=True)
-    _register_fonts()
+    output = Path(output_path)
+    output.parent.mkdir(parents=True, exist_ok=True)
 
     doc = SimpleDocTemplate(
-        output_path,
+        str(output),
         pagesize=A4,
-        leftMargin=56,
-        rightMargin=56,
-        topMargin=56,
-        bottomMargin=56,
+        rightMargin=18 * mm,
+        leftMargin=18 * mm,
+        topMargin=18 * mm,
+        bottomMargin=16 * mm,
+        title="TDK&ProService - Raport analizy energii",
+        author="TDK&ProService",
     )
 
     styles = _build_styles()
     story = []
 
-    lines = report_text.splitlines()
-    if _has_report_header(lines):
-        title = _clean_header(lines[0])
-        remaining_lines = lines[1:]
-    else:
-        title = DEFAULT_TITLE
-        remaining_lines = lines
-
-    story.append(Paragraph(escape(BRAND_LINE), styles["Brand"]))
+    story.extend(_build_header(styles))
     story.append(Spacer(1, 10))
-    story.append(Paragraph(escape(title), styles["ReportTitle"]))
-    story.append(Spacer(1, 14))
-    story.append(HRFlowable(width="100%", thickness=1, color="#666666"))
-    story.append(Spacer(1, 18))
 
-    for line in remaining_lines:
-        stripped = line.strip()
+    sections = _parse_report_sections(report_text)
 
-        if not stripped:
-            story.append(Spacer(1, 8))
-        elif _is_section_heading(stripped):
-            story.append(Spacer(1, 16))
-            story.append(Paragraph(escape(stripped), styles["SectionHeading"]))
-            story.append(Spacer(1, 8))
-        else:
-            story.append(Paragraph(escape(stripped), styles["BodyText"]))
-            story.append(Spacer(1, 6))
+    for title, lines in sections:
+        story.extend(_build_section(title, lines, styles))
+        story.append(Spacer(1, 8))
 
-    doc.build(story)
-    return output_path
+    story.extend(_build_footer_cta(styles))
 
+    doc.build(story, onFirstPage=_page_footer, onLaterPages=_page_footer)
 
-def _register_fonts() -> None:
-    if FONT_NAME not in pdfmetrics.getRegisteredFontNames():
-        pdfmetrics.registerFont(TTFont(FONT_NAME, FONT_PATH))
+    return str(output)
 
 
 def _build_styles() -> dict:
-    base_styles = getSampleStyleSheet()
-
     return {
-        "Brand": ParagraphStyle(
-            "Brand",
-            parent=base_styles["Normal"],
-            fontName=FONT_NAME,
-            fontSize=10,
-            leading=13,
-            textColor="#555555",
-            spaceAfter=4,
-        ),
-        "ReportTitle": ParagraphStyle(
-            "ReportTitle",
-            parent=base_styles["Title"],
-            fontName=FONT_NAME,
+        "brand": ParagraphStyle(
+            "brand",
+            fontName=BOLD_FONT,
             fontSize=20,
-            leading=26,
-            spaceAfter=10,
+            leading=24,
+            textColor=colors.white,
+            alignment=TA_LEFT,
         ),
-        "SectionHeading": ParagraphStyle(
-            "SectionHeading",
-            parent=base_styles["Heading2"],
-            fontName=FONT_NAME,
-            fontSize=13,
-            leading=18,
-            spaceBefore=12,
-            spaceAfter=8,
+        "subtitle": ParagraphStyle(
+            "subtitle",
+            fontName=BASE_FONT,
+            fontSize=9.5,
+            leading=13,
+            textColor=colors.HexColor("#c8d0dc"),
+            alignment=TA_LEFT,
         ),
-        "BodyText": ParagraphStyle(
-            "BodyText",
-            parent=base_styles["Normal"],
-            fontName=FONT_NAME,
-            fontSize=10.5,
-            leading=16,
-            spaceAfter=2,
+        "section_title": ParagraphStyle(
+            "section_title",
+            fontName=BOLD_FONT,
+            fontSize=12,
+            leading=15,
+            textColor=colors.HexColor("#ffffff"),
+            alignment=TA_LEFT,
+        ),
+        "body": ParagraphStyle(
+            "body",
+            fontName=BASE_FONT,
+            fontSize=9.5,
+            leading=14,
+            textColor=colors.HexColor("#20242b"),
+            alignment=TA_LEFT,
+        ),
+        "body_bold": ParagraphStyle(
+            "body_bold",
+            fontName=BOLD_FONT,
+            fontSize=9.5,
+            leading=14,
+            textColor=colors.HexColor("#111827"),
+            alignment=TA_LEFT,
+        ),
+        "small": ParagraphStyle(
+            "small",
+            fontName=BASE_FONT,
+            fontSize=8.5,
+            leading=12,
+            textColor=colors.HexColor("#5b6472"),
+            alignment=TA_LEFT,
+        ),
+        "cta": ParagraphStyle(
+            "cta",
+            fontName=BOLD_FONT,
+            fontSize=10,
+            leading=14,
+            textColor=colors.HexColor("#0f172a"),
+            alignment=TA_LEFT,
+        ),
+        "center_small": ParagraphStyle(
+            "center_small",
+            fontName=BASE_FONT,
+            fontSize=8,
+            leading=10,
+            textColor=colors.HexColor("#7d8796"),
+            alignment=TA_CENTER,
         ),
     }
 
 
-def _has_report_header(lines: list[str]) -> bool:
-    if not lines:
-        return False
+def _build_header(styles: dict) -> list:
+    header_content = [
+        [Paragraph("TDK&ProService — KODEKS ANALIZA", styles["brand"])],
+        [
+            Paragraph(
+                "Analiza faktur, kosztów energii i pracy instalacji PV<br/>"
+                "Wstępny raport techniczny na podstawie danych klienta.",
+                styles["subtitle"],
+            )
+        ],
+    ]
 
-    first_line = lines[0].strip()
-    return first_line.startswith("===") and first_line.endswith("===")
+    table = Table(header_content, colWidths=[174 * mm])
+
+    table.setStyle(
+        TableStyle(
+            [
+                ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#0f1115")),
+                ("BOX", (0, 0), (-1, -1), 0.8, colors.HexColor("#2b3240")),
+                ("LEFTPADDING", (0, 0), (-1, -1), 14),
+                ("RIGHTPADDING", (0, 0), (-1, -1), 14),
+                ("TOPPADDING", (0, 0), (-1, -1), 12),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 12),
+            ]
+        )
+    )
+
+    return [table]
 
 
-def _clean_header(header: str) -> str:
-    return header.strip().strip("=").strip()
+def _build_section(title: str, lines: list[str], styles: dict) -> list:
+    elements = []
+
+    title_table = Table(
+        [[Paragraph(title, styles["section_title"])]],
+        colWidths=[174 * mm],
+    )
+
+    title_table.setStyle(
+        TableStyle(
+            [
+                ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#171b22")),
+                ("BOX", (0, 0), (-1, -1), 0.6, colors.HexColor("#2b3240")),
+                ("LEFTPADDING", (0, 0), (-1, -1), 10),
+                ("RIGHTPADDING", (0, 0), (-1, -1), 10),
+                ("TOPPADDING", (0, 0), (-1, -1), 7),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 7),
+            ]
+        )
+    )
+
+    elements.append(title_table)
+
+    body_rows = []
+
+    for line in lines:
+        clean = line.strip()
+        if not clean:
+            continue
+
+        body_rows.append([Paragraph(_escape(clean), styles["body"])])
+
+    if body_rows:
+        body_table = Table(body_rows, colWidths=[174 * mm])
+        body_table.setStyle(
+            TableStyle(
+                [
+                    ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#f8fafc")),
+                    ("BOX", (0, 0), (-1, -1), 0.5, colors.HexColor("#d7dde7")),
+                    ("LEFTPADDING", (0, 0), (-1, -1), 10),
+                    ("RIGHTPADDING", (0, 0), (-1, -1), 10),
+                    ("TOPPADDING", (0, 0), (-1, -1), 5),
+                    ("BOTTOMPADDING", (0, 0), (-1, -1), 5),
+                    ("ROWBACKGROUNDS", (0, 0), (-1, -1), [colors.HexColor("#ffffff"), colors.HexColor("#f4f7fb")]),
+                ]
+            )
+        )
+
+        elements.append(body_table)
+
+    return elements
 
 
-def _is_section_heading(line: str) -> bool:
-    return bool(line[:1].isdigit() and "." in line[:4])
+def _build_footer_cta(styles: dict) -> list:
+    cta_text = (
+        "Pełna diagnostyka techniczna pozwala sprawdzić, czy instalacja rzeczywiście "
+        "pracuje optymalnie i czy nie generuje ukrytych strat."
+    )
+
+    cta_table = Table(
+        [
+            [Paragraph("Następny krok", styles["section_title"])],
+            [Paragraph(cta_text, styles["cta"])],
+            [Paragraph("kontakt@tdkproservice.pl", styles["body_bold"])],
+        ],
+        colWidths=[174 * mm],
+    )
+
+    cta_table.setStyle(
+        TableStyle(
+            [
+                ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#171b22")),
+                ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+                ("BACKGROUND", (0, 1), (-1, -1), colors.HexColor("#eaf2ff")),
+                ("BOX", (0, 0), (-1, -1), 0.8, colors.HexColor("#2f7cf6")),
+                ("LEFTPADDING", (0, 0), (-1, -1), 12),
+                ("RIGHTPADDING", (0, 0), (-1, -1), 12),
+                ("TOPPADDING", (0, 0), (-1, -1), 8),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 8),
+            ]
+        )
+    )
+
+    return [Spacer(1, 6), cta_table]
+
+
+def _parse_report_sections(report_text: str) -> list[tuple[str, list[str]]]:
+    lines = [line.rstrip() for line in report_text.splitlines()]
+
+    sections = []
+    current_title = None
+    current_lines = []
+
+    for line in lines:
+        clean = line.strip()
+
+        if not clean:
+            continue
+
+        if clean.startswith("==="):
+            continue
+
+        if _is_section_title(clean):
+            if current_title:
+                sections.append((current_title, current_lines))
+
+            current_title = clean
+            current_lines = []
+        else:
+            if current_title is None:
+                current_title = "Raport"
+            current_lines.append(clean)
+
+    if current_title:
+        sections.append((current_title, current_lines))
+
+    return sections
+
+
+def _is_section_title(line: str) -> bool:
+    prefixes = (
+        "1.",
+        "2.",
+        "3.",
+        "4.",
+        "5.",
+        "6.",
+        "7.",
+    )
+
+    return line.startswith(prefixes)
+
+
+def _escape(text: str) -> str:
+    return (
+        text.replace("&", "&amp;")
+        .replace("<", "&lt;")
+        .replace(">", "&gt;")
+    )
+
+
+def _page_footer(canvas, doc) -> None:
+    canvas.saveState()
+
+    canvas.setFont(BASE_FONT, 8)
+    canvas.setFillColor(colors.HexColor("#7d8796"))
+
+    footer = "TDK&ProService • Diagnostyka OZE • Audyt rozliczeń energii"
+    page = f"Strona {doc.page}"
+
+    canvas.drawString(18 * mm, 10 * mm, footer)
+    canvas.drawRightString(192 * mm, 10 * mm, page)
+
+    canvas.restoreState()

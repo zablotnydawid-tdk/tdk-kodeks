@@ -1,7 +1,7 @@
 import re
 
 
-def build_report(raw_input: str, selected_mask: str, process_result: dict) -> str:
+def build_report(raw_input: str, selected_mask: str, process_result: dict | None) -> str:
     data = _extract_energy_data(raw_input)
     calculations = _extract_calculations(process_result)
     efficiency = _extract_efficiency(process_result)
@@ -64,7 +64,7 @@ def _extract_energy_data(raw_input: str) -> dict:
                 r"pv\s+(\d+(?:\.\d+)?)",
                 r"moc\s+(\d+(?:\.\d+)?)",
                 r"(\d+(?:\.\d+)?)\s*kwp",
-                r"(\d+(?:\.\d+)?)\s*kw",
+                r"(\d+(?:\.\d+)?)\s*kw(?!h)",
             ),
         ),
         "pv_monthly_production_kwh": _find_number(
@@ -77,7 +77,9 @@ def _extract_energy_data(raw_input: str) -> dict:
     }
 
 
-def _extract_calculations(process_result: dict) -> dict:
+def _extract_calculations(process_result: dict | None) -> dict:
+    process_result = process_result or {}
+
     direct = process_result.get("calculations")
     if isinstance(direct, dict):
         return direct
@@ -109,10 +111,12 @@ def _extract_calculations(process_result: dict) -> dict:
     }
 
 
-def _extract_efficiency(process_result: dict) -> str | None:
+def _extract_efficiency(process_result: dict | None) -> str | None:
+    process_result = process_result or {}
+
     direct = process_result.get("interpretation") or process_result.get("efficiency")
     if isinstance(direct, str):
-        return direct
+        return direct.lower()
 
     text = _combined_process_text(process_result).lower()
     for value in ("niska efektywność", "umiarkowana efektywność", "wysoka efektywność"):
@@ -259,7 +263,9 @@ def _format_value(value: float | None, unit: str) -> str:
     return f"{value:g} {unit}"
 
 
-def _combined_process_text(process_result: dict) -> str:
+def _combined_process_text(process_result: dict | None) -> str:
+    process_result = process_result or {}
+
     return "\n".join(
         str(process_result.get(key, ""))
         for key in ("observation", "hypothesis", "verification", "conclusion", "recommendation")
