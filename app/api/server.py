@@ -26,6 +26,8 @@ load_dotenv()
 REPORTS_DIR = Path("data") / "reports"
 REPORTS_DIR.mkdir(parents=True, exist_ok=True)
 
+LEAD_NOTIFY_EMAIL = os.getenv("LEAD_NOTIFY_EMAIL", "kontakt@tdkproservice.pl")
+
 app = FastAPI(title="KODEKS API")
 app.mount("/reports", StaticFiles(directory=str(REPORTS_DIR)), name="reports")
 
@@ -109,26 +111,56 @@ def validate_paid_payload(payload: AnalyzePaidRequest) -> list[str]:
     return errors
 
 
+def _smtp_config() -> dict:
+    return {
+        "host": os.getenv("SMTP_HOST"),
+        "port": int(os.getenv("SMTP_PORT", "465")),
+        "user": os.getenv("SMTP_USER"),
+        "password": os.getenv("SMTP_PASS"),
+        "from_email": os.getenv("SMTP_FROM", "kontakt@tdkproservice.pl"),
+    }
+
+
+def _send_message(message: EmailMessage) -> None:
+    config = _smtp_config()
+
+    missing = []
+    if not config["host"]:
+        missing.append("SMTP_HOST")
+    if not config["user"]:
+        missing.append("SMTP_USER")
+    if not config["password"]:
+        missing.append("SMTP_PASS")
+    if not config["from_email"]:
+        missing.append("SMTP_FROM")
+
+    if missing:
+        raise RuntimeError("SMTP nie jest skonfigurowane: brakuje " + ", ".join(missing))
+
+    context = ssl.create_default_context()
+
+    if config["port"] == 465:
+        with smtplib.SMTP_SSL(
+            config["host"],
+            config["port"],
+            context=context,
+            timeout=15,
+        ) as smtp:
+            smtp.login(config["user"], config["password"])
+            smtp.send_message(message)
+    else:
+        with smtplib.SMTP(
+            config["host"],
+            config["port"],
+            timeout=15,
+        ) as smtp:
+            smtp.starttls(context=context)
+            smtp.login(config["user"], config["password"])
+            smtp.send_message(message)
+
+
 def send_email_with_pdf(to_email: str, pdf_path: str) -> tuple[bool, str]:
-    smtp_host = os.getenv("SMTP_HOST")
-    smtp_port = int(os.getenv("SMTP_PORT", "465"))
-    smtp_user = os.getenv("SMTP_USER")
-    smtp_pass = os.getenv("SMTP_PASS")
-    smtp_from = os.getenv("SMTP_FROM", "kontakt@tdkproservice.pl")
-
-    missing_config = []
-
-    if not smtp_host:
-        missing_config.append("SMTP_HOST")
-    if not smtp_user:
-        missing_config.append("SMTP_USER")
-    if not smtp_pass:
-        missing_config.append("SMTP_PASS")
-    if not smtp_from:
-        missing_config.append("SMTP_FROM")
-
-    if missing_config:
-        return False, "SMTP nie jest skonfigurowane: brakuje " + ", ".join(missing_config)
+    config = _smtp_config()
 
     path = Path(pdf_path)
     if not path.exists():
@@ -136,7 +168,7 @@ def send_email_with_pdf(to_email: str, pdf_path: str) -> tuple[bool, str]:
 
     message = EmailMessage()
     message["Subject"] = "Analiza kosztów energii — TDK&ProService"
-    message["From"] = smtp_from
+    message["From"] = config["from_email"]
     message["To"] = to_email
 
     message.set_content(
@@ -155,19 +187,38 @@ def send_email_with_pdf(to_email: str, pdf_path: str) -> tuple[bool, str]:
         filename=path.name,
     )
 
-    if smtp_port == 465:
-        context = ssl.create_default_context()
-        with smtplib.SMTP_SSL(smtp_host, smtp_port, context=context) as smtp:
-            smtp.login(smtp_user, smtp_pass)
-            smtp.send_message(message)
-    else:
-        context = ssl.create_default_context()
-        with smtplib.SMTP(smtp_host, smtp_port) as smtp:
-            smtp.starttls(context=context)
-            smtp.login(smtp_user, smtp_pass)
-            smtp.send_message(message)
-
+    _send_message(message)
     return True, "Mail z raportem został wysłany."
+
+
+def send_lead_notification(
+    client_email: str,
+    consumption_kwh: float,
+    price_per_kwh: float,
+    pv_power_kw: float,
+    pv_monthly_production_kwh: float,
+    pdf_url: str,
+) -> tuple[bool, str]:
+    config = _smtp_config()
+
+    message = EmailMessage()
+    message["Subject"] = "Nowy lead KODEKS — TDK&ProService"
+    message["From"] = config["from_email"]
+    message["To"] = LEAD_NOTIFY_EMAIL
+
+    message.set_content(
+        "Nowy lead z formularza KODEKS.\n\n"
+        f"Email klienta: {client_email}\n"
+        f"Zużycie miesięczne: {consumption_kwh} kWh\n"
+        f"Cena energii: {price_per_kwh} zł/kWh\n"
+        f"Moc PV: {pv_power_kw} kWp\n"
+        f"Miesięczna produkcja PV: {pv_monthly_production_kwh} kWh\n\n"
+        f"Link do raportu PDF:\n{pdf_url}\n\n"
+        "To jest potencjalny klient do dalszej diagnostyki technicznej.\n"
+    )
+
+    _send_message(message)
+    return True, "Lead został wysłany na kontakt@tdkproservice.pl."
 
 
 @app.get("/", response_class=HTMLResponse)
@@ -474,6 +525,18 @@ def form_analyze(
         result = run_analysis(text, email, base_url)
         pdf_url = result["pdf_url"]
 
+        try:
+            send_lead_notification(
+                client_email=email,
+                consumption_kwh=consumption_kwh,
+                price_per_kwh=price_per_kwh,
+                pv_power_kw=pv_power_kw,
+                pv_monthly_production_kwh=pv_monthly_production_kwh,
+                pdf_url=pdf_url,
+            )
+        except Exception:
+            pass
+
     except Exception as exc:
         return f"""
         <!doctype html>
@@ -498,126 +561,36 @@ def form_analyze(
     <head>
         <meta charset="utf-8">
         <title>TDK&ProService | Raport gotowy</title>
-
-        <style>
-            body {{
-                margin: 0;
-                padding: 40px;
-                background: #0f1115;
-                color: #f1f1f1;
-                font-family: Arial, sans-serif;
-            }}
-
-            .wrapper {{
-                max-width: 880px;
-                margin: 60px auto;
-            }}
-
-            .card {{
-                background: #171b22;
-                border: 1px solid #2b3240;
-                border-radius: 18px;
-                padding: 36px;
-                box-shadow: 0 10px 30px rgba(0,0,0,0.35);
-            }}
-
-            h1 {{
-                margin-top: 0;
-                font-size: 34px;
-            }}
-
-            .subtitle {{
-                color: #b0b7c3;
-                line-height: 1.6;
-                margin-bottom: 28px;
-            }}
-
-            .button {{
-                display: inline-block;
-                padding: 14px 22px;
-                border-radius: 10px;
-                background: #2f7cf6;
-                color: white;
-                font-weight: bold;
-                text-decoration: none;
-                margin-right: 12px;
-                margin-bottom: 12px;
-            }}
-
-            .button:hover {{
-                background: #4d95ff;
-            }}
-
-            .secondary {{
-                background: transparent;
-                border: 1px solid #394252;
-                color: #d8dee9;
-            }}
-
-            .secondary:hover {{
-                background: #202631;
-            }}
-
-            .contact {{
-                margin-top: 28px;
-                padding: 18px;
-                border-left: 4px solid #2f7cf6;
-                background: #10141a;
-                color: #d8dee9;
-                line-height: 1.6;
-            }}
-
-            .credit {{
-                margin-top: 18px;
-                padding: 18px;
-                border-left: 4px solid #d4a84f;
-                background: #15110a;
-                color: #f4e3b0;
-                line-height: 1.6;
-            }}
-
-            .footer {{
-                margin-top: 32px;
-                color: #7d8796;
-                font-size: 14px;
-            }}
-        </style>
     </head>
+    <body style="background:#0f1115;color:#f1f1f1;font-family:Arial,sans-serif;padding:40px;">
+        <div style="max-width:880px;margin:60px auto;background:#171b22;border:1px solid #2b3240;border-radius:18px;padding:36px;">
+            <h1>Raport gotowy</h1>
+            <p style="color:#b0b7c3;line-height:1.6;">
+                Wstępna analiza energii została wygenerowana.
+                Możesz teraz pobrać raport PDF i sprawdzić wynik obliczeń.
+            </p>
 
-    <body>
-        <div class="wrapper">
-            <div class="card">
-                <h1>Raport gotowy</h1>
-
-                <div class="subtitle">
-                    Wstępna analiza energii została wygenerowana.
-                    Możesz teraz pobrać raport PDF i sprawdzić wynik obliczeń.
-                </div>
-
-                <a class="button" href="{pdf_url}" target="_blank">
+            <p>
+                <a href="{pdf_url}" target="_blank" style="display:inline-block;padding:14px 22px;border-radius:10px;background:#2f7cf6;color:white;font-weight:bold;text-decoration:none;margin-right:12px;">
                     Pobierz raport PDF
                 </a>
 
-                <a class="button secondary" href="/">
+                <a href="/" style="display:inline-block;padding:14px 22px;border-radius:10px;border:1px solid #394252;color:#d8dee9;font-weight:bold;text-decoration:none;">
                     Wykonaj kolejną płatną analizę
                 </a>
+            </p>
 
-                <div class="credit">
-                    Ten raport jest pierwszym etapem diagnostyki.
-                    Jeśli zdecydujesz się na pełną analizę techniczną TDK&ProService,
-                    koszt tej analizy, <strong>39,99 zł</strong>, zostanie odliczony
-                    od ceny pełnej usługi.
-                </div>
-
-                <div class="contact">
-                    Jeśli chcesz pełny audyt techniczny instalacji PV, rozliczeń energii,
-                    pracy pompy ciepła lub magazynu energii, skontaktuj się z TDK&ProService:<br>
-                    <strong>kontakt@tdkproservice.pl</strong>
-                </div>
+            <div style="margin-top:18px;padding:18px;border-left:4px solid #d4a84f;background:#15110a;color:#f4e3b0;line-height:1.6;">
+                Ten raport jest pierwszym etapem diagnostyki.
+                Jeśli zdecydujesz się na pełną analizę techniczną TDK&ProService,
+                koszt tej analizy, <strong>39,99 zł</strong>, zostanie odliczony
+                od ceny pełnej usługi.
             </div>
 
-            <div class="footer">
-                TDK&ProService • Diagnostyka OZE • Audyt rozliczeń energii • Dane. Fakty. Efekt.
+            <div style="margin-top:28px;padding:18px;border-left:4px solid #2f7cf6;background:#10141a;color:#d8dee9;line-height:1.6;">
+                Jeśli chcesz pełny audyt techniczny instalacji PV, rozliczeń energii,
+                pracy pompy ciepła lub magazynu energii, skontaktuj się z TDK&ProService:<br>
+                <strong>kontakt@tdkproservice.pl</strong>
             </div>
         </div>
     </body>
@@ -664,25 +637,38 @@ def analyze_paid(request: AnalyzePaidRequest, request_obj: Request) -> dict:
             "message": f"Błąd analizy lub generowania PDF: {exc}",
         }
 
+    email_sent = False
+    email_info = "Nie wysłano maila do klienta."
+    lead_sent = False
+    lead_info = "Nie wysłano powiadomienia o leadzie."
+
     try:
         email_sent, email_info = send_email_with_pdf(
             request.email or "",
             result["pdf_path"],
         )
-
     except Exception as exc:
-        return {
-            "status": "ok",
-            "pdf_url": result["pdf_url"],
-            "email_sent": False,
-            "email_info": f"Błąd wysyłki maila: {exc}",
-        }
+        email_info = f"Błąd wysyłki maila do klienta: {exc}"
+
+    try:
+        lead_sent, lead_info = send_lead_notification(
+            client_email=request.email or "",
+            consumption_kwh=request.consumption_kwh or 0,
+            price_per_kwh=request.price_per_kwh or 0,
+            pv_power_kw=request.pv_power_kw or 0,
+            pv_monthly_production_kwh=request.pv_monthly_production_kwh or 0,
+            pdf_url=result["pdf_url"],
+        )
+    except Exception as exc:
+        lead_info = f"Błąd wysyłki leada: {exc}"
 
     return {
         "status": "ok",
         "pdf_url": result["pdf_url"],
         "email_sent": email_sent,
         "email_info": email_info,
+        "lead_sent": lead_sent,
+        "lead_info": lead_info,
     }
 
 
