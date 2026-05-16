@@ -561,6 +561,23 @@ def home() -> str:
     """
 
 
+def status_badge(status: str) -> str:
+    styles = {
+        "waiting_for_payment": ("Oczekuje na płatność", "#241d0f", "#7a5a1d", "#f4c76b"),
+        "paid": ("Płatność potwierdzona", "#0f1d2d", "#2f7cf6", "#8fbcff"),
+        "paid_generated": ("Raport wygenerowany", "#0f241b", "#245c3a", "#7ee787"),
+    }
+    label, background, border, color = styles.get(
+        status,
+        (status or "Nieznany status", "#10141a", "#394252", "#b0b7c3"),
+    )
+    return (
+        f'<span style="display:inline-block;padding:8px 11px;border-radius:999px;'
+        f'background:{background};border:1px solid {border};color:{color};'
+        f'font-size:13px;font-weight:bold;white-space:nowrap;">{label}</span>'
+    )
+
+
 @app.post("/form-analyze", response_class=HTMLResponse)
 def form_analyze(
     request_obj: Request,
@@ -661,8 +678,37 @@ def form_analyze(
                 W razie pytań napisz: <strong>{PAYMENT_CONTACT_EMAIL}</strong>
             </div>
 
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px;margin-top:18px;">
+                <div style="padding:22px;border-radius:16px;background:#10141a;border:1px solid #2b3240;color:#d8dee9;line-height:1.75;box-shadow:0 18px 48px rgba(0,0,0,0.28);">
+                    <div style="font-size:18px;font-weight:bold;color:#ffffff;margin-bottom:10px;">Raport premium</div>
+                    <p style="margin:0 0 10px;color:#b0b7c3;">Pełna diagnostyka techniczna pozwala wykryć:</p>
+                    <ul style="margin:0;padding-left:20px;color:#d8dee9;">
+                        <li>ukryte straty,</li>
+                        <li>błędy konfiguracji,</li>
+                        <li>problemy autokonsumpcji,</li>
+                        <li>błędne taryfy,</li>
+                        <li>straty pracy instalacji PV.</li>
+                    </ul>
+                </div>
+
+                <div style="padding:22px;border-radius:16px;background:#10141a;border:1px solid #2b3240;color:#d8dee9;line-height:1.75;box-shadow:0 18px 48px rgba(0,0,0,0.28);">
+                    <div style="font-size:18px;font-weight:bold;color:#ffffff;margin-bottom:10px;">Co przygotować do pełnej analizy</div>
+                    <ul style="margin:0;padding-left:20px;color:#d8dee9;">
+                        <li>ostatnia faktura,</li>
+                        <li>dane z falownika,</li>
+                        <li>taryfa,</li>
+                        <li>zdjęcia instalacji,</li>
+                        <li>informacje o pompie ciepła/magazynie.</li>
+                    </ul>
+                </div>
+            </div>
+
+            <p style="margin-top:18px;color:#8d96a6;font-size:13px;line-height:1.6;">
+                Raport ma charakter wstępnej analizy technicznej.
+            </p>
+
             <p style="margin-top:26px;">
-                <a href="/" style="display:inline-block;padding:14px 22px;border-radius:10px;border:1px solid #394252;color:#d8dee9;font-weight:bold;text-decoration:none;">
+                <a href="/" style="display:inline-block;padding:15px 24px;border-radius:12px;border:1px solid #394252;color:#d8dee9;font-weight:bold;text-decoration:none;box-shadow:0 12px 30px rgba(0,0,0,0.22);">
                     Wróć do formularza
                 </a>
             </p>
@@ -704,29 +750,30 @@ def admin_orders(admin_key: str = "") -> str:
         for order in orders:
             order_id = order.get("order_id", "")
             status = order.get("status", "")
+            status_html = status_badge(status)
             email = order.get("email", "")
             created_at = order.get("created_at", "")
             amount = order.get("amount", PAYMENT_AMOUNT)
             pdf_url = order.get("pdf_url")
             if pdf_url:
                 action = f"""
-                <a href="{pdf_url}" target="_blank" style="color:#7ee787;font-weight:bold;">Pobierz PDF</a>
+                <a href="{pdf_url}" target="_blank" style="display:inline-block;padding:11px 15px;border-radius:10px;background:#0f241b;border:1px solid #245c3a;color:#7ee787;font-weight:bold;text-decoration:none;white-space:nowrap;">Pobierz PDF</a>
                 """
             else:
                 action = f"""
-                <a href="/admin/generate/{order_id}?admin_key={admin_key}" style="display:inline-block;padding:9px 12px;border-radius:8px;background:#2f7cf6;color:white;font-weight:bold;text-decoration:none;">
+                <a href="/admin/generate/{order_id}?admin_key={admin_key}" style="display:inline-block;padding:12px 18px;border-radius:11px;background:#2f7cf6;color:white;font-weight:bold;text-decoration:none;box-shadow:0 12px 28px rgba(47,124,246,0.28);white-space:nowrap;">
                     GENERUJ
                 </a>
                 """
 
             rows += f"""
-            <tr>
-                <td style="padding:12px;border-top:1px solid #2b3240;">{created_at}</td>
-                <td style="padding:12px;border-top:1px solid #2b3240;"><strong>{order_id}</strong></td>
-                <td style="padding:12px;border-top:1px solid #2b3240;">{email}</td>
-                <td style="padding:12px;border-top:1px solid #2b3240;">{amount}</td>
-                <td style="padding:12px;border-top:1px solid #2b3240;">{status}</td>
-                <td style="padding:12px;border-top:1px solid #2b3240;">{action}</td>
+            <tr style="background:#10141a;">
+                <td style="padding:16px 14px;border-top:1px solid #2b3240;color:#b0b7c3;white-space:nowrap;">{created_at}</td>
+                <td style="padding:16px 14px;border-top:1px solid #2b3240;"><strong style="color:#ffffff;">{order_id}</strong></td>
+                <td style="padding:16px 14px;border-top:1px solid #2b3240;color:#d8dee9;">{email}</td>
+                <td style="padding:16px 14px;border-top:1px solid #2b3240;color:#ffffff;font-weight:bold;white-space:nowrap;">{amount}</td>
+                <td style="padding:16px 14px;border-top:1px solid #2b3240;">{status_html}</td>
+                <td style="padding:16px 14px;border-top:1px solid #2b3240;">{action}</td>
             </tr>
             """
 
@@ -739,19 +786,21 @@ def admin_orders(admin_key: str = "") -> str:
             System sam wygeneruje PDF dla konkretnego zgłoszenia.
         </p>
 
-        <table style="width:100%;border-collapse:collapse;margin-top:24px;color:#d8dee9;">
-            <thead>
-                <tr style="text-align:left;color:#ffffff;">
-                    <th style="padding:12px;">Data</th>
-                    <th style="padding:12px;">Zgłoszenie</th>
-                    <th style="padding:12px;">Email</th>
-                    <th style="padding:12px;">Kwota</th>
-                    <th style="padding:12px;">Status</th>
-                    <th style="padding:12px;">Akcja</th>
-                </tr>
-            </thead>
-            <tbody>{rows}</tbody>
-        </table>
+        <div style="margin-top:24px;overflow-x:auto;border:1px solid #2b3240;border-radius:16px;background:#10141a;box-shadow:0 18px 48px rgba(0,0,0,0.28);">
+            <table style="width:100%;min-width:780px;border-collapse:collapse;color:#d8dee9;">
+                <thead>
+                    <tr style="text-align:left;color:#ffffff;background:#151b24;">
+                        <th style="padding:14px;">Data</th>
+                        <th style="padding:14px;">Zgłoszenie</th>
+                        <th style="padding:14px;">Email</th>
+                        <th style="padding:14px;">Kwota</th>
+                        <th style="padding:14px;">Status</th>
+                        <th style="padding:14px;">Akcja</th>
+                    </tr>
+                </thead>
+                <tbody>{rows}</tbody>
+            </table>
+        </div>
         """,
     )
 
@@ -829,6 +878,35 @@ def admin_generate(order_id: str, request_obj: Request, admin_key: str = "") -> 
                 <div style="font-size:18px;font-weight:bold;color:#ffffff;margin-bottom:10px;">Link dla klienta</div>
                 <div style="word-break:break-all;color:#7ee787;font-weight:bold;">{result['pdf_url']}</div>
             </div>
+
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px;margin-top:18px;">
+                <div style="padding:22px;border-radius:16px;background:#10141a;border:1px solid #2b3240;color:#d8dee9;line-height:1.75;box-shadow:0 18px 48px rgba(0,0,0,0.28);">
+                    <div style="font-size:18px;font-weight:bold;color:#ffffff;margin-bottom:10px;">Raport premium</div>
+                    <p style="margin:0 0 10px;color:#b0b7c3;">Pełna diagnostyka techniczna pozwala wykryć:</p>
+                    <ul style="margin:0;padding-left:20px;color:#d8dee9;">
+                        <li>ukryte straty,</li>
+                        <li>błędy konfiguracji,</li>
+                        <li>problemy autokonsumpcji,</li>
+                        <li>błędne taryfy,</li>
+                        <li>straty pracy instalacji PV.</li>
+                    </ul>
+                </div>
+
+                <div style="padding:22px;border-radius:16px;background:#10141a;border:1px solid #2b3240;color:#d8dee9;line-height:1.75;box-shadow:0 18px 48px rgba(0,0,0,0.28);">
+                    <div style="font-size:18px;font-weight:bold;color:#ffffff;margin-bottom:10px;">Co przygotować do pełnej analizy</div>
+                    <ul style="margin:0;padding-left:20px;color:#d8dee9;">
+                        <li>ostatnia faktura,</li>
+                        <li>dane z falownika,</li>
+                        <li>taryfa,</li>
+                        <li>zdjęcia instalacji,</li>
+                        <li>informacje o pompie ciepła/magazynie.</li>
+                    </ul>
+                </div>
+            </div>
+
+            <p style="margin-top:18px;color:#8d96a6;font-size:13px;line-height:1.6;">
+                Raport ma charakter wstępnej analizy technicznej.
+            </p>
             """,
         )
 
