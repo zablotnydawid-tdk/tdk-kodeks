@@ -1,4 +1,3 @@
-import json
 import os
 import smtplib
 import ssl
@@ -20,6 +19,7 @@ from app.input.normalizer import normalize_input
 from app.output.pdf_builder import generate_pdf
 from app.output.report_builder import build_report
 from app.routing.mask_router import choose_mask
+from app.storage.order_store import FileSystemOrderStore, create_order_id
 
 
 load_dotenv()
@@ -27,8 +27,7 @@ load_dotenv()
 REPORTS_DIR = Path("data") / "reports"
 REPORTS_DIR.mkdir(parents=True, exist_ok=True)
 
-ORDERS_DIR = Path("data") / "orders"
-ORDERS_DIR.mkdir(parents=True, exist_ok=True)
+order_store = FileSystemOrderStore()
 
 LEAD_NOTIFY_EMAIL = os.getenv(
     "LEAD_NOTIFY_EMAIL",
@@ -68,7 +67,7 @@ PAYMENT_BANK_ACCOUNT = os.getenv(
 # BLIK na telefon
 PAYMENT_BLIK_PHONE = os.getenv(
     "PAYMENT_BLIK_PHONE",
-    "723-023-152"
+    "723023152"
 )
 
 PAYMENT_CONTACT_EMAIL = os.getenv(
@@ -156,39 +155,6 @@ def validate_paid_payload(payload: AnalyzePaidRequest) -> list[str]:
         errors.append("pv_monthly_production_kwh musi być większe lub równe 0")
 
     return errors
-
-
-def create_order_id() -> str:
-    date_part = datetime.now().strftime("%Y%m%d")
-    unique_part = uuid.uuid4().hex[:6].upper()
-    return f"KODEKS-{date_part}-{unique_part}"
-
-
-def order_path(order_id: str) -> Path:
-    safe_order_id = order_id.replace("/", "").replace("\\", "")
-    return ORDERS_DIR / f"{safe_order_id}.json"
-
-
-def save_order(order: dict) -> None:
-    path = order_path(order["order_id"])
-    path.write_text(json.dumps(order, ensure_ascii=False, indent=2), encoding="utf-8")
-
-
-def load_order(order_id: str) -> dict:
-    path = order_path(order_id)
-    if not path.exists():
-        raise RuntimeError(f"Nie znaleziono zgłoszenia: {order_id}")
-    return json.loads(path.read_text(encoding="utf-8"))
-
-
-def list_orders() -> list[dict]:
-    orders = []
-    for path in sorted(ORDERS_DIR.glob("*.json"), reverse=True):
-        try:
-            orders.append(json.loads(path.read_text(encoding="utf-8")))
-        except Exception:
-            continue
-    return orders
 
 
 def build_analysis_text_from_order(order: dict) -> str:
@@ -632,7 +598,7 @@ def form_analyze(
             "pdf_path": None,
             "base_url": base_url,
         }
-        save_order(order)
+        order_store.create_order(order)
 
         # SMTP jest tylko dodatkiem. Jeśli nie działa, zgłoszenie i tak jest zapisane.
         try:
@@ -701,7 +667,7 @@ def admin_orders(admin_key: str = "") -> str:
             """,
         )
 
-    orders = list_orders()
+    orders = order_store.list_orders()
 
     if not orders:
         rows = """
@@ -778,7 +744,7 @@ def admin_generate(order_id: str, request_obj: Request, admin_key: str = "") -> 
         )
 
     try:
-        order = load_order(order_id)
+        order = order_store.get_order(order_id)
 
         if order.get("pdf_url"):
             pdf_url = order["pdf_url"]
@@ -802,11 +768,11 @@ def admin_generate(order_id: str, request_obj: Request, admin_key: str = "") -> 
         text = build_analysis_text_from_order(order)
         result = run_analysis(text, order.get("email", ""), base_url)
 
-        order["status"] = "paid_generated"
-        order["generated_at"] = datetime.now().isoformat(timespec="seconds")
-        order["pdf_url"] = result["pdf_url"]
-        order["pdf_path"] = result["pdf_path"]
-        save_order(order)
+        order = order_store.mark_generated(
+            order_id,
+            result["pdf_url"],
+            result.get("pdf_path"),
+        )
 
         email_info = "Mail nie został wysłany."
         try:
