@@ -29,7 +29,10 @@ def build_report(raw_input: str, selected_mask: str, process_result: dict | None
             "6. NASTĘPNY KROK",
             *_build_next_steps(data),
             "",
-            "7. KONTAKT",
+            "7. ZAŁOŻENIA I RYZYKA ANALIZY",
+            *_build_risk_notes(),
+            "",
+            "8. KONTAKT",
             "TDK&ProService",
             "kontakt@tdkproservice.pl",
             "",
@@ -130,25 +133,28 @@ def _build_recommendation(efficiency: str | None) -> str:
     if efficiency == "niska efektywność":
         return (
             "W pierwszej kolejności warto sprawdzić taryfę, profil zużycia oraz godziny pracy "
-            "największych odbiorników energii."
+            "największych odbiorników energii. Niski wynik może oznaczać, że instalacja lub sposób "
+            "korzystania z energii nie wykorzystuje pełnego potencjału PV."
         )
 
     if efficiency == "umiarkowana efektywność":
         return (
             "Największy sens ma poprawa autokonsumpcji, sterowania urządzeniami oraz dopasowania "
-            "pracy instalacji do codziennego zużycia."
+            "pracy instalacji do codziennego zużycia. Warto również sprawdzić sposób rozliczania "
+            "energii oraz dane z falownika."
         )
 
     if efficiency == "wysoka efektywność":
         return (
             "Wstępny wynik jest korzystny, jednak aby potwierdzić rzeczywistą efektywność "
             "i wykluczyć ukryte straty, zalecana jest pełna analiza techniczna oparta "
-            "na danych rzeczywistych."
+            "na danych rzeczywistych, fakturach i historii pracy instalacji."
         )
 
     return (
         "Do rzetelnej rekomendacji potrzebne jest uzupełnienie danych o zużyciu, cenie energii, "
-        "mocy PV i miesięcznej produkcji."
+        "mocy PV i miesięcznej produkcji. Bez kompletu danych raport należy traktować wyłącznie "
+        "jako wstępną informację."
     )
 
 
@@ -163,28 +169,28 @@ def _format_input_data(data: dict) -> list[str]:
 
 def _format_calculations(calculations: dict) -> list[str]:
     return [
-        f"- Koszt bez PV: {_format_value(calculations.get('cost_without_pv'), 'zł')}",
-        f"- Koszt po PV: {_format_value(calculations.get('cost_after_pv'), 'zł')}",
-        f"- Oszczędność miesięczna: {_format_value(calculations.get('savings'), 'zł')}",
+        f"- Szacowany koszt bez PV: {_format_value(calculations.get('cost_without_pv'), 'zł')}",
+        f"- Szacowany koszt po kompensacji PV: {_format_value(calculations.get('cost_after_pv'), 'zł')}",
+        f"- Szacowana różnica miesięczna: {_format_value(calculations.get('savings'), 'zł')}",
     ]
 
 
 def _format_interpretation(efficiency: str | None) -> list[str]:
     if efficiency == "niska efektywność":
         meaning = (
-            "Oszczędność jest niewielka, więc instalacja lub sposób korzystania z energii "
-            "prawdopodobnie wymaga korekty."
+            "Oszczędność jest niewielka, więc instalacja, rozliczenie lub sposób korzystania "
+            "z energii prawdopodobnie wymaga dokładniejszej weryfikacji."
         )
     elif efficiency == "umiarkowana efektywność":
         meaning = (
-            "System daje zauważalny efekt, ale nadal może mieć rezerwę w autokonsumpcji "
-            "i sterowaniu zużyciem."
+            "System daje zauważalny efekt, ale nadal może mieć rezerwę w autokonsumpcji, "
+            "sterowaniu zużyciem albo sposobie rozliczania energii."
         )
     elif efficiency == "wysoka efektywność":
         meaning = (
             "Wynik jest korzystny, jednak opiera się wyłącznie na danych wstępnych. "
-            "W praktyce wiele instalacji osiąga podobne wyniki, a jednocześnie generuje "
-            "straty wynikające z konfiguracji, autokonsumpcji lub sposobu rozliczania."
+            "W praktyce instalacja może nadal generować ukryte straty wynikające z konfiguracji, "
+            "autokonsumpcji, taryfy lub sposobu rozliczania."
         )
     else:
         meaning = (
@@ -239,6 +245,15 @@ def _build_next_steps(data: dict) -> list[str]:
         return ["Dane do uzupełnienia:", *missing, "Dane pomocnicze:", *base]
 
     return base
+
+
+def _build_risk_notes() -> list[str]:
+    return [
+        "- Raport oparty jest na danych deklarowanych przez użytkownika.",
+        "- Rzeczywista efektywność może różnić się od wyniku w zależności od taryfy, autokonsumpcji, ustawień instalacji i sposobu rozliczania.",
+        "- Wynik nie stanowi pełnego audytu technicznego ani opinii rzeczoznawczej.",
+        "- Pełna diagnostyka wymaga analizy faktur, danych z urządzeń oraz sposobu pracy instalacji w czasie.",
+    ]
 
 
 def _build_cta() -> str:
