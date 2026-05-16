@@ -1,3 +1,4 @@
+import json
 import os
 import smtplib
 import ssl
@@ -26,8 +27,54 @@ load_dotenv()
 REPORTS_DIR = Path("data") / "reports"
 REPORTS_DIR.mkdir(parents=True, exist_ok=True)
 
-LEAD_NOTIFY_EMAIL = os.getenv("LEAD_NOTIFY_EMAIL", "kontakt@tdkproservice.pl")
+ORDERS_DIR = Path("data") / "orders"
+ORDERS_DIR.mkdir(parents=True, exist_ok=True)
 
+LEAD_NOTIFY_EMAIL = os.getenv(
+    "LEAD_NOTIFY_EMAIL",
+    "kontakt@tdkproservice.pl"
+)
+
+# =========================
+# ADMIN
+# =========================
+
+# Ustaw w Render → Environment
+ADMIN_KEY = os.getenv(
+    "ADMIN_KEY",
+    "zmien-to-w-render"
+)
+
+# =========================
+# PŁATNOŚĆ
+# =========================
+
+PAYMENT_AMOUNT = os.getenv(
+    "PAYMENT_AMOUNT",
+    "39,99 zł"
+)
+
+PAYMENT_ACCOUNT_NAME = os.getenv(
+    "PAYMENT_ACCOUNT_NAME",
+    "TDK&ProService Dawid Zabłotny"
+)
+
+# Konto bankowe
+PAYMENT_BANK_ACCOUNT = os.getenv(
+    "PAYMENT_BANK_ACCOUNT",
+    "83102046490000700202108116"
+)
+
+# BLIK na telefon
+PAYMENT_BLIK_PHONE = os.getenv(
+    "PAYMENT_BLIK_PHONE",
+    "723-023-152"
+)
+
+PAYMENT_CONTACT_EMAIL = os.getenv(
+    "PAYMENT_CONTACT_EMAIL",
+    "kontakt@tdkproservice.pl"
+)
 app = FastAPI(title="KODEKS API")
 app.mount("/reports", StaticFiles(directory=str(REPORTS_DIR)), name="reports")
 
@@ -109,6 +156,69 @@ def validate_paid_payload(payload: AnalyzePaidRequest) -> list[str]:
         errors.append("pv_monthly_production_kwh musi być większe lub równe 0")
 
     return errors
+
+
+def create_order_id() -> str:
+    date_part = datetime.now().strftime("%Y%m%d")
+    unique_part = uuid.uuid4().hex[:6].upper()
+    return f"KODEKS-{date_part}-{unique_part}"
+
+
+def order_path(order_id: str) -> Path:
+    safe_order_id = order_id.replace("/", "").replace("\\", "")
+    return ORDERS_DIR / f"{safe_order_id}.json"
+
+
+def save_order(order: dict) -> None:
+    path = order_path(order["order_id"])
+    path.write_text(json.dumps(order, ensure_ascii=False, indent=2), encoding="utf-8")
+
+
+def load_order(order_id: str) -> dict:
+    path = order_path(order_id)
+    if not path.exists():
+        raise RuntimeError(f"Nie znaleziono zgłoszenia: {order_id}")
+    return json.loads(path.read_text(encoding="utf-8"))
+
+
+def list_orders() -> list[dict]:
+    orders = []
+    for path in sorted(ORDERS_DIR.glob("*.json"), reverse=True):
+        try:
+            orders.append(json.loads(path.read_text(encoding="utf-8")))
+        except Exception:
+            continue
+    return orders
+
+
+def build_analysis_text_from_order(order: dict) -> str:
+    return (
+        f"Zużycie {order['consumption_kwh']} kWh, "
+        f"cena {order['price_per_kwh']} zł, "
+        f"PV {order['pv_power_kw']} kWp, "
+        f"produkcja PV {order['pv_monthly_production_kwh']} kWh"
+    )
+
+
+def verify_admin_key(admin_key: str) -> bool:
+    return admin_key == ADMIN_KEY and ADMIN_KEY != "zmien-to-w-render"
+
+
+def html_page(title: str, body: str) -> str:
+    return f"""
+    <!doctype html>
+    <html lang="pl">
+    <head>
+        <meta charset="utf-8">
+        <title>{title}</title>
+    </head>
+    <body style="background:#0f1115;color:#f1f1f1;font-family:Arial,sans-serif;padding:40px;">
+        <div style="max-width:980px;margin:40px auto;background:#171b22;border:1px solid #2b3240;border-radius:18px;padding:36px;">
+            {body}
+        </div>
+    </body>
+    </html>
+    """
 
 
 def _smtp_config() -> dict:
@@ -404,7 +514,7 @@ def home() -> str:
 
             <div class="subtitle">
                 Analiza faktur, kosztów energii, instalacji PV i autokonsumpcji.<br>
-                Wygeneruj wstępny raport techniczny na podstawie danych rzeczywistych.
+                Wypełnij formularz, opłać analizę i otrzymaj raport PDF po potwierdzeniu płatności.
             </div>
 
             <div class="container">
@@ -428,7 +538,7 @@ def home() -> str:
                         <input type="number" step="0.01" name="pv_monthly_production_kwh" required>
 
                         <button type="submit">
-                            Generuj raport PDF
+                            Przejdź do płatności
                         </button>
 
                     </form>
@@ -441,7 +551,7 @@ def home() -> str:
                         <div class="price">39,99 zł</div>
 
                         <div class="note">
-                            Raport PDF generowany jest automatycznie na podstawie podanych danych.
+                            Raport PDF zostanie wygenerowany po potwierdzeniu płatności.
                             To pierwszy etap oceny kosztów energii, pracy PV i możliwych strat.
                         </div>
 
@@ -496,35 +606,35 @@ def form_analyze(
 ) -> str:
     try:
         if pv_power_kw > 100:
-            return """
-            <!doctype html>
-            <html lang="pl">
-            <head>
-                <meta charset="utf-8">
-                <title>Błąd danych</title>
-            </head>
-            <body style="background:#0f1115;color:#f1f1f1;font-family:Arial,sans-serif;padding:40px;">
-                <div style="max-width:760px;margin:60px auto;background:#171b22;border:1px solid #2b3240;border-radius:16px;padding:32px;">
-                    <h1>Błąd danych</h1>
-                    <p>Moc PV wygląda nieprawidłowo. Podaj wartość w kWp, np. 8 zamiast 8000.</p>
-                    <p><a style="color:#4d95ff;" href="/">Wróć do formularza</a></p>
-                </div>
-            </body>
-            </html>
-            """
+            return html_page(
+                "Błąd danych",
+                """
+                <h1>Błąd danych</h1>
+                <p>Moc PV wygląda nieprawidłowo. Podaj wartość w kWp, np. 8 zamiast 8000.</p>
+                <p><a style="color:#4d95ff;" href="/">Wróć do formularza</a></p>
+                """,
+            )
 
         base_url = str(request_obj.base_url).rstrip("/")
+        order_id = create_order_id()
 
-        text = (
-            f"Zużycie {consumption_kwh} kWh, "
-            f"cena {price_per_kwh} zł, "
-            f"PV {pv_power_kw} kWp, "
-            f"produkcja PV {pv_monthly_production_kwh} kWh"
-        )
+        order = {
+            "order_id": order_id,
+            "status": "waiting_for_payment",
+            "created_at": datetime.now().isoformat(timespec="seconds"),
+            "email": email,
+            "consumption_kwh": consumption_kwh,
+            "price_per_kwh": price_per_kwh,
+            "pv_power_kw": pv_power_kw,
+            "pv_monthly_production_kwh": pv_monthly_production_kwh,
+            "amount": PAYMENT_AMOUNT,
+            "pdf_url": None,
+            "pdf_path": None,
+            "base_url": base_url,
+        }
+        save_order(order)
 
-        result = run_analysis(text, email, base_url)
-        pdf_url = result["pdf_url"]
-
+        # SMTP jest tylko dodatkiem. Jeśli nie działa, zgłoszenie i tak jest zapisane.
         try:
             send_lead_notification(
                 client_email=email,
@@ -532,70 +642,211 @@ def form_analyze(
                 price_per_kwh=price_per_kwh,
                 pv_power_kw=pv_power_kw,
                 pv_monthly_production_kwh=pv_monthly_production_kwh,
-                pdf_url=pdf_url,
+                pdf_url=f"Zgłoszenie zapisane: {order_id}",
             )
         except Exception:
             pass
 
-    except Exception as exc:
-        return f"""
-        <!doctype html>
-        <html lang="pl">
-        <head>
-            <meta charset="utf-8">
-            <title>Błąd</title>
-        </head>
-        <body style="background:#0f1115;color:#f1f1f1;font-family:Arial,sans-serif;padding:40px;">
-            <div style="max-width:760px;margin:60px auto;background:#171b22;border:1px solid #2b3240;border-radius:16px;padding:32px;">
-                <h1>Nie udało się wygenerować raportu</h1>
-                <p>{exc}</p>
-                <p><a style="color:#4d95ff;" href="/">Wróć do formularza</a></p>
-            </div>
-        </body>
-        </html>
-        """
+        return html_page(
+            "TDK&ProService | Płatność",
+            f"""
+            <h1>Zgłoszenie przyjęte</h1>
 
-    return f"""
-    <!doctype html>
-    <html lang="pl">
-    <head>
-        <meta charset="utf-8">
-        <title>TDK&ProService | Raport gotowy</title>
-    </head>
-    <body style="background:#0f1115;color:#f1f1f1;font-family:Arial,sans-serif;padding:40px;">
-        <div style="max-width:880px;margin:60px auto;background:#171b22;border:1px solid #2b3240;border-radius:18px;padding:36px;">
-            <h1>Raport gotowy</h1>
             <p style="color:#b0b7c3;line-height:1.6;">
-                Wstępna analiza energii została wygenerowana.
-                Możesz teraz pobrać raport PDF i sprawdzić wynik obliczeń.
+                Twoje zgłoszenie zostało zapisane. Raport PDF zostanie wygenerowany po potwierdzeniu płatności.
             </p>
+
+            <div style="margin-top:24px;padding:22px;border-left:4px solid #2f7cf6;background:#10141a;color:#d8dee9;line-height:1.8;">
+                <strong>Numer zgłoszenia:</strong><br>
+                <span style="font-size:24px;color:#ffffff;">{order_id}</span><br><br>
+
+                <strong>Kwota:</strong> {PAYMENT_AMOUNT}<br>
+                <strong>Odbiorca:</strong> {PAYMENT_ACCOUNT_NAME}<br>
+                <strong>Numer konta:</strong> {PAYMENT_BANK_ACCOUNT}<br>
+                <strong>Tytuł przelewu:</strong> {order_id}
+            </div>
+
+            <div style="margin-top:22px;padding:18px;border-left:4px solid #d4a84f;background:#15110a;color:#f4e3b0;line-height:1.7;">
+                Po zaksięgowaniu płatności raport zostanie wygenerowany i udostępniony dla tego konkretnego zgłoszenia.
+                W razie pytań napisz: <strong>{PAYMENT_CONTACT_EMAIL}</strong>
+            </div>
+
+            <p style="margin-top:26px;">
+                <a href="/" style="display:inline-block;padding:14px 22px;border-radius:10px;border:1px solid #394252;color:#d8dee9;font-weight:bold;text-decoration:none;">
+                    Wróć do formularza
+                </a>
+            </p>
+            """,
+        )
+
+    except Exception as exc:
+        return html_page(
+            "Błąd",
+            f"""
+            <h1>Nie udało się zapisać zgłoszenia</h1>
+            <p>{exc}</p>
+            <p><a style="color:#4d95ff;" href="/">Wróć do formularza</a></p>
+            """,
+        )
+
+
+@app.get("/admin/orders", response_class=HTMLResponse)
+def admin_orders(admin_key: str = "") -> str:
+    if not verify_admin_key(admin_key):
+        return html_page(
+            "Brak dostępu",
+            """
+            <h1>Brak dostępu</h1>
+            <p>Podaj poprawny admin_key.</p>
+            """,
+        )
+
+    orders = list_orders()
+
+    if not orders:
+        rows = """
+        <tr>
+            <td colspan="7" style="padding:14px;color:#b0b7c3;">Brak zgłoszeń.</td>
+        </tr>
+        """
+    else:
+        rows = ""
+        for order in orders:
+            order_id = order.get("order_id", "")
+            status = order.get("status", "")
+            email = order.get("email", "")
+            created_at = order.get("created_at", "")
+            amount = order.get("amount", PAYMENT_AMOUNT)
+            pdf_url = order.get("pdf_url")
+            if pdf_url:
+                action = f"""
+                <a href="{pdf_url}" target="_blank" style="color:#7ee787;font-weight:bold;">Pobierz PDF</a>
+                """
+            else:
+                action = f"""
+                <a href="/admin/generate/{order_id}?admin_key={admin_key}" style="display:inline-block;padding:9px 12px;border-radius:8px;background:#2f7cf6;color:white;font-weight:bold;text-decoration:none;">
+                    GENERUJ
+                </a>
+                """
+
+            rows += f"""
+            <tr>
+                <td style="padding:12px;border-top:1px solid #2b3240;">{created_at}</td>
+                <td style="padding:12px;border-top:1px solid #2b3240;"><strong>{order_id}</strong></td>
+                <td style="padding:12px;border-top:1px solid #2b3240;">{email}</td>
+                <td style="padding:12px;border-top:1px solid #2b3240;">{amount}</td>
+                <td style="padding:12px;border-top:1px solid #2b3240;">{status}</td>
+                <td style="padding:12px;border-top:1px solid #2b3240;">{action}</td>
+            </tr>
+            """
+
+    return html_page(
+        "TDK&ProService | Admin zgłoszeń",
+        f"""
+        <h1>Panel zgłoszeń KODEKS</h1>
+        <p style="color:#b0b7c3;line-height:1.6;">
+            Po potwierdzeniu wpłaty w banku kliknij <strong>GENERUJ</strong>.
+            System sam wygeneruje PDF dla konkretnego zgłoszenia.
+        </p>
+
+        <table style="width:100%;border-collapse:collapse;margin-top:24px;color:#d8dee9;">
+            <thead>
+                <tr style="text-align:left;color:#ffffff;">
+                    <th style="padding:12px;">Data</th>
+                    <th style="padding:12px;">Zgłoszenie</th>
+                    <th style="padding:12px;">Email</th>
+                    <th style="padding:12px;">Kwota</th>
+                    <th style="padding:12px;">Status</th>
+                    <th style="padding:12px;">Akcja</th>
+                </tr>
+            </thead>
+            <tbody>{rows}</tbody>
+        </table>
+        """,
+    )
+
+
+@app.get("/admin/generate/{order_id}", response_class=HTMLResponse)
+def admin_generate(order_id: str, request_obj: Request, admin_key: str = "") -> str:
+    if not verify_admin_key(admin_key):
+        return html_page(
+            "Brak dostępu",
+            """
+            <h1>Brak dostępu</h1>
+            <p>Podaj poprawny admin_key.</p>
+            """,
+        )
+
+    try:
+        order = load_order(order_id)
+
+        if order.get("pdf_url"):
+            pdf_url = order["pdf_url"]
+            return html_page(
+                "Raport już istnieje",
+                f"""
+                <h1>Raport już był wygenerowany</h1>
+                <p>Zgłoszenie: <strong>{order_id}</strong></p>
+                <p>
+                    <a href="{pdf_url}" target="_blank" style="display:inline-block;padding:14px 22px;border-radius:10px;background:#2f7cf6;color:white;font-weight:bold;text-decoration:none;">
+                        Pobierz PDF
+                    </a>
+                    <a href="/admin/orders?admin_key={admin_key}" style="display:inline-block;padding:14px 22px;border-radius:10px;border:1px solid #394252;color:#d8dee9;font-weight:bold;text-decoration:none;margin-left:10px;">
+                        Wróć do panelu
+                    </a>
+                </p>
+                """,
+            )
+
+        base_url = str(request_obj.base_url).rstrip("/")
+        text = build_analysis_text_from_order(order)
+        result = run_analysis(text, order.get("email", ""), base_url)
+
+        order["status"] = "paid_generated"
+        order["generated_at"] = datetime.now().isoformat(timespec="seconds")
+        order["pdf_url"] = result["pdf_url"]
+        order["pdf_path"] = result["pdf_path"]
+        save_order(order)
+
+        email_info = "Mail nie został wysłany."
+        try:
+            _, email_info = send_email_with_pdf(order.get("email", ""), result["pdf_path"])
+        except Exception as exc:
+            email_info = f"PDF wygenerowany, ale mail nie wyszedł: {exc}"
+
+        return html_page(
+            "Raport wygenerowany",
+            f"""
+            <h1>Raport wygenerowany</h1>
+            <p>Zgłoszenie: <strong>{order_id}</strong></p>
+            <p style="color:#b0b7c3;">{email_info}</p>
 
             <p>
-                <a href="{pdf_url}" target="_blank" style="display:inline-block;padding:14px 22px;border-radius:10px;background:#2f7cf6;color:white;font-weight:bold;text-decoration:none;margin-right:12px;">
-                    Pobierz raport PDF
+                <a href="{result['pdf_url']}" target="_blank" style="display:inline-block;padding:14px 22px;border-radius:10px;background:#2f7cf6;color:white;font-weight:bold;text-decoration:none;">
+                    Pobierz PDF
                 </a>
 
-                <a href="/" style="display:inline-block;padding:14px 22px;border-radius:10px;border:1px solid #394252;color:#d8dee9;font-weight:bold;text-decoration:none;">
-                    Wykonaj kolejną płatną analizę
+                <a href="/admin/orders?admin_key={admin_key}" style="display:inline-block;padding:14px 22px;border-radius:10px;border:1px solid #394252;color:#d8dee9;font-weight:bold;text-decoration:none;margin-left:10px;">
+                    Wróć do panelu
                 </a>
             </p>
 
-            <div style="margin-top:18px;padding:18px;border-left:4px solid #d4a84f;background:#15110a;color:#f4e3b0;line-height:1.6;">
-                Ten raport jest pierwszym etapem diagnostyki.
-                Jeśli zdecydujesz się na pełną analizę techniczną TDK&ProService,
-                koszt tej analizy, <strong>39,99 zł</strong>, zostanie odliczony
-                od ceny pełnej usługi.
+            <div style="margin-top:22px;padding:18px;border-left:4px solid #2f7cf6;background:#10141a;color:#d8dee9;line-height:1.7;">
+                Link dla klienta:<br>
+                <strong>{result['pdf_url']}</strong>
             </div>
+            """,
+        )
 
-            <div style="margin-top:28px;padding:18px;border-left:4px solid #2f7cf6;background:#10141a;color:#d8dee9;line-height:1.6;">
-                Jeśli chcesz pełny audyt techniczny instalacji PV, rozliczeń energii,
-                pracy pompy ciepła lub magazynu energii, skontaktuj się z TDK&ProService:<br>
-                <strong>kontakt@tdkproservice.pl</strong>
-            </div>
-        </div>
-    </body>
-    </html>
-    """
+    except Exception as exc:
+        return html_page(
+            "Błąd generowania",
+            f"""
+            <h1>Nie udało się wygenerować raportu</h1>
+            <p>{exc}</p>
+            <p><a style="color:#4d95ff;" href="/admin/orders?admin_key={admin_key}">Wróć do panelu</a></p>
+            """,
+        )
 
 
 @app.post("/analyze")
