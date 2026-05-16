@@ -137,7 +137,7 @@ def _build_styles() -> dict:
 
 def _build_header(styles: dict) -> list:
     header_content = [
-        [Paragraph("TDK&ProService — KODEKS ANALIZA", styles["brand"])],
+        [Paragraph("TDK&ProService - KODEKS ANALIZA", styles["brand"])],
         [
             Paragraph(
                 "Analiza faktur, kosztów energii i pracy instalacji PV<br/>"
