@@ -1,0 +1,15 @@
+{
+  "order_id": "KODEKS-20260516-0655E4",
+  "status": "paid_generated",
+  "created_at": "2026-05-16T12:21:46",
+  "email": "tdkproservice@onet.pl",
+  "consumption_kwh": 324.0,
+  "price_per_kwh": 1.23,
+  "pv_power_kw": 9.7,
+  "pv_monthly_production_kwh": 7657.0,
+  "amount": "39,99 zł",
+  "pdf_url": "http://127.0.0.1:8000/reports/raport_20260516_122707_92674b90.pdf",
+  "pdf_path": "data\\reports\\raport_20260516_122707_92674b90.pdf",
+  "base_url": "http://127.0.0.1:8000",
+  "generated_at": "2026-05-16T12:27:07"
+}

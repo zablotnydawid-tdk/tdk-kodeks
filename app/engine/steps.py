@@ -81,14 +81,44 @@ def calculate_energy_case(data: dict) -> dict | None:
     if any(value is None for value in required_values):
         return None
 
-    cost_without_pv = data["consumption_kwh"] * data["price_per_kwh"]
-    cost_after_pv = max(data["consumption_kwh"] - data["pv_monthly_production_kwh"], 0) * data["price_per_kwh"]
-    savings = cost_without_pv - cost_after_pv
+    consumption_kwh = data["consumption_kwh"]
+    price_per_kwh = data["price_per_kwh"]
+    pv_monthly_production_kwh = data["pv_monthly_production_kwh"]
+
+    cost_without_pv = consumption_kwh * price_per_kwh
+    raw_cost_after_pv = max(consumption_kwh - pv_monthly_production_kwh, 0) * price_per_kwh
+
+    # Model analizy wstępnej:
+    # Wynik ma charakter ostrożnościowego szacunku kosztów po uwzględnieniu pracy instalacji PV.
+    # System nie zakłada idealnego bilansowania energii ani pełnej kompensacji kosztów,
+    # ponieważ rzeczywisty wynik zależy m.in. od autokonsumpcji, taryfy,
+    # profilu zużycia, sposobu rozliczeń oraz pracy instalacji w czasie.
+    # Dzięki temu raport zachowuje realistyczny i profesjonalny charakter
+    # na etapie wstępnej analizy techniczno-ekonomicznej.
+    residual_cost_floor = max(120, cost_without_pv * 0.20)
+    cost_after_pv = max(raw_cost_after_pv, residual_cost_floor)
+    savings = max(cost_without_pv - cost_after_pv, 0)
+
+    if cost_after_pv >= cost_without_pv:
+        efficiency_label = "niska efektywność"
+    elif cost_after_pv <= cost_without_pv * 0.35:
+        efficiency_label = "wysoka efektywność"
+    else:
+        efficiency_label = "umiarkowana efektywność"
+
+    if raw_cost_after_pv == 0 or pv_monthly_production_kwh >= consumption_kwh:
+        calculation_mode = "conservative_residual_estimate"
+    else:
+        calculation_mode = "standard_estimate_with_pv"
 
     return {
         "cost_without_pv": round(cost_without_pv, 2),
+        "raw_cost_after_pv": round(raw_cost_after_pv, 2),
+        "residual_cost_floor": round(residual_cost_floor, 2),
         "cost_after_pv": round(cost_after_pv, 2),
         "savings": round(savings, 2),
+        "efficiency_label": efficiency_label,
+        "calculation_mode": calculation_mode,
     }
 
 
