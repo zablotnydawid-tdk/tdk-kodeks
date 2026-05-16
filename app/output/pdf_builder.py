@@ -114,8 +114,8 @@ def _build_styles() -> dict:
         "brand": ParagraphStyle(
             "brand",
             fontName=BOLD_FONT,
-            fontSize=24,
-            leading=29,
+            fontSize=23,
+            leading=27,
             textColor=COLOR_GOLD,
             alignment=TA_LEFT,
         ),
@@ -124,6 +124,14 @@ def _build_styles() -> dict:
             fontName=BOLD_FONT,
             fontSize=26,
             leading=31,
+            textColor=COLOR_TEXT,
+            alignment=TA_LEFT,
+        ),
+        "brand_subtitle": ParagraphStyle(
+            "brand_subtitle",
+            fontName=BASE_FONT,
+            fontSize=10.5,
+            leading=13,
             textColor=COLOR_TEXT,
             alignment=TA_LEFT,
         ),
@@ -145,9 +153,9 @@ def _build_styles() -> dict:
         ),
         "meta": ParagraphStyle(
             "meta",
-            fontName=BASE_FONT,
-            fontSize=8.5,
-            leading=11,
+            fontName=BOLD_FONT,
+            fontSize=7.4,
+            leading=9.4,
             textColor=COLOR_MUTED,
             alignment=TA_LEFT,
         ),
@@ -193,17 +201,17 @@ def _build_styles() -> dict:
         ),
         "kpi_label": ParagraphStyle(
             "kpi_label",
-            fontName=BASE_FONT,
-            fontSize=8.2,
-            leading=10.5,
+            fontName=BOLD_FONT,
+            fontSize=7.8,
+            leading=9.8,
             textColor=COLOR_MUTED,
             alignment=TA_LEFT,
         ),
         "kpi_value": ParagraphStyle(
             "kpi_value",
             fontName=BOLD_FONT,
-            fontSize=16,
-            leading=20,
+            fontSize=20,
+            leading=24,
             textColor=COLOR_TEXT,
             alignment=TA_LEFT,
         ),
@@ -228,8 +236,10 @@ def _build_styles() -> dict:
 
 def _build_hero(styles: dict, report_meta: dict, status: dict) -> list:
     hero_rows = [
-        [_build_logo_block(styles), Paragraph("TDK&amp;ProService<br/><font color='#f4f6fb'>WITNESS AI | ZT&amp;SI</font>", styles["brand"])],
-        ["", Paragraph("PREMIUM TECHNICAL AUDIT REPORT", styles["eyebrow"])],
+        [_build_logo_block(styles), Paragraph("TDK&amp;ProService", styles["brand"])],
+        ["", Paragraph("Premium Energy Diagnostics", styles["brand_subtitle"])],
+        ["", Spacer(1, 8)],
+        ["", Paragraph("PREMIUM TECHNICAL REPORT", styles["eyebrow"])],
         [
             "",
             Paragraph(
@@ -240,8 +250,8 @@ def _build_hero(styles: dict, report_meta: dict, status: dict) -> list:
         [
             "",
             Paragraph(
-                "Wstępny raport techniczny na podstawie danych klienta. "
-                "Układ dashboardowy pokazuje kluczowe KPI, poziom efektywności i obszary wymagające weryfikacji.",
+                "Wstępna analiza kosztów energii, pracy PV i potencjalnych strat.<br/>"
+                "Przygotowana na podstawie danych przekazanych przez klienta.",
                 styles["subtitle"],
             )
         ],
@@ -257,14 +267,15 @@ def _build_hero(styles: dict, report_meta: dict, status: dict) -> list:
             [
                 ("BACKGROUND", (0, 0), (-1, -1), COLOR_PANEL),
                 ("BOX", (0, 0), (-1, -1), 1.0, COLOR_GOLD_DARK),
-                ("LINEBELOW", (0, 0), (-1, 0), 1.2, COLOR_PURPLE),
-                ("SPAN", (0, 0), (0, 4)),
-                ("LEFTPADDING", (0, 0), (-1, -1), 15),
-                ("RIGHTPADDING", (0, 0), (-1, -1), 15),
-                ("TOPPADDING", (0, 0), (-1, -1), 10),
-                ("BOTTOMPADDING", (0, 0), (-1, -1), 10),
-                ("TOPPADDING", (0, 0), (0, 0), 17),
-                ("BOTTOMPADDING", (0, 4), (0, 4), 17),
+                ("LINEBELOW", (0, 1), (-1, 1), 0.45, COLOR_GOLD_DARK),
+                ("SPAN", (0, 0), (0, 6)),
+                ("VALIGN", (0, 0), (-1, -1), "TOP"),
+                ("LEFTPADDING", (0, 0), (-1, -1), 17),
+                ("RIGHTPADDING", (0, 0), (-1, -1), 17),
+                ("TOPPADDING", (0, 0), (-1, -1), 8),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 8),
+                ("TOPPADDING", (0, 0), (0, 0), 20),
+                ("BOTTOMPADDING", (0, 6), (0, 6), 20),
             ]
         )
     )
@@ -304,12 +315,12 @@ def _build_meta_table(report_meta: dict, status: dict, styles: dict) -> Table:
     meta = Table(
         [
             [
-                Paragraph(f"Numer raportu<br/><b>{report_meta['number']}</b>", styles["meta"]),
-                Paragraph(f"Data<br/><b>{report_meta['date']}</b>", styles["meta"]),
+                Paragraph(f"RAPORT&nbsp;&nbsp;{report_meta['number']}", styles["meta"]),
+                Paragraph(f"DATA&nbsp;&nbsp;{report_meta['date']}", styles["meta"]),
                 status_chip,
             ]
         ],
-        colWidths=[62 * mm, 48 * mm, 52 * mm],
+        colWidths=[76 * mm, 38 * mm, 48 * mm],
     )
     meta.setStyle(
         TableStyle(
@@ -318,10 +329,10 @@ def _build_meta_table(report_meta: dict, status: dict, styles: dict) -> Table:
                 ("BOX", (0, 0), (-1, -1), 0.6, COLOR_BORDER),
                 ("LINEBEFORE", (0, 0), (0, -1), 2.0, COLOR_GOLD),
                 ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
-                ("LEFTPADDING", (0, 0), (-1, -1), 10),
-                ("RIGHTPADDING", (0, 0), (-1, -1), 10),
-                ("TOPPADDING", (0, 0), (-1, -1), 10),
-                ("BOTTOMPADDING", (0, 0), (-1, -1), 10),
+                ("LEFTPADDING", (0, 0), (-1, -1), 9),
+                ("RIGHTPADDING", (0, 0), (-1, -1), 9),
+                ("TOPPADDING", (0, 0), (-1, -1), 8),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 8),
             ]
         )
     )
@@ -347,9 +358,9 @@ def _build_kpi_cards(kpis: dict, styles: dict) -> list:
     )
 
     cards = [
-        _kpi_cell("Szacowany koszt bez PV", kpis["cost_without_pv"], "#0d1016", "#d4a84f", styles),
-        _kpi_cell("Koszt po kompensacji PV", kpis["cost_after_pv"], "#0d1016", "#1f8f4d", styles),
-        _kpi_cell("Szacowana różnica miesięczna", kpis["savings"], "#0d1016", "#8b3dff", styles),
+        _kpi_cell("BEZ PV", kpis["cost_without_pv"], "#0d1016", "#d4a84f", styles),
+        _kpi_cell("PO PV", kpis["cost_after_pv"], "#0d1016", "#1f8f4d", styles),
+        _kpi_cell("RÓŻNICA", kpis["savings"], "#0d1016", "#8b3dff", styles),
     ]
 
     table = Table([cards], colWidths=[56.8 * mm, 56.8 * mm, 56.8 * mm], hAlign="LEFT")
@@ -371,7 +382,9 @@ def _kpi_cell(label: str, value: str, background: str, accent: str, styles: dict
     cell = Table(
         [
             [Paragraph(label, styles["kpi_label"])],
+            [Spacer(1, 2)],
             [Paragraph(value, styles["kpi_value"])],
+            [Spacer(1, 4)],
             [_progress_bar(accent)],
         ],
         colWidths=[50.8 * mm],
@@ -382,10 +395,10 @@ def _kpi_cell(label: str, value: str, background: str, accent: str, styles: dict
                 ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor(background)),
                 ("BOX", (0, 0), (-1, -1), 0.7, COLOR_BORDER),
                 ("LINEBEFORE", (0, 0), (0, -1), 4, colors.HexColor(accent)),
-                ("LEFTPADDING", (0, 0), (-1, -1), 9),
-                ("RIGHTPADDING", (0, 0), (-1, -1), 9),
-                ("TOPPADDING", (0, 0), (-1, -1), 8),
-                ("BOTTOMPADDING", (0, 0), (-1, -1), 8),
+                ("LEFTPADDING", (0, 0), (-1, -1), 11),
+                ("RIGHTPADDING", (0, 0), (-1, -1), 11),
+                ("TOPPADDING", (0, 0), (-1, -1), 9),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 9),
             ]
         )
     )
@@ -703,7 +716,7 @@ def _page_footer(canvas, doc) -> None:
     canvas.setFont(BASE_FONT, 8)
     canvas.setFillColor(COLOR_MUTED)
 
-    footer = "TDK&ProService | Diagnostyka OZE | Audyt rozliczeń energii"
+    footer = "TDK&ProService | Diagnostyka OZE | Powered by ZT&SI Diagnostic Framework"
     page = f"Strona {doc.page}"
 
     canvas.drawString(18 * mm, 10 * mm, footer)
