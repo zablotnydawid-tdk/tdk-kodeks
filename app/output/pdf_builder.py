@@ -114,16 +114,16 @@ def _build_styles() -> dict:
         "brand": ParagraphStyle(
             "brand",
             fontName=BOLD_FONT,
-            fontSize=23,
-            leading=27,
+            fontSize=24,
+            leading=29,
             textColor=COLOR_GOLD,
             alignment=TA_LEFT,
         ),
         "hero_title": ParagraphStyle(
             "hero_title",
             fontName=BOLD_FONT,
-            fontSize=26,
-            leading=31,
+            fontSize=25,
+            leading=30,
             textColor=COLOR_TEXT,
             alignment=TA_LEFT,
         ),
@@ -146,16 +146,16 @@ def _build_styles() -> dict:
         "eyebrow": ParagraphStyle(
             "eyebrow",
             fontName=BOLD_FONT,
-            fontSize=8.5,
-            leading=11,
-            textColor=COLOR_PURPLE,
+            fontSize=8,
+            leading=10,
+            textColor=COLOR_MUTED,
             alignment=TA_LEFT,
         ),
         "meta": ParagraphStyle(
             "meta",
             fontName=BOLD_FONT,
-            fontSize=7.4,
-            leading=9.4,
+            fontSize=6.8,
+            leading=8.8,
             textColor=COLOR_MUTED,
             alignment=TA_LEFT,
         ),
@@ -210,8 +210,8 @@ def _build_styles() -> dict:
         "kpi_value": ParagraphStyle(
             "kpi_value",
             fontName=BOLD_FONT,
-            fontSize=20,
-            leading=24,
+            fontSize=21,
+            leading=25,
             textColor=COLOR_TEXT,
             alignment=TA_LEFT,
         ),
@@ -236,19 +236,17 @@ def _build_styles() -> dict:
 
 def _build_hero(styles: dict, report_meta: dict, status: dict) -> list:
     hero_rows = [
-        [_build_logo_block(styles), Paragraph("TDK&amp;ProService", styles["brand"])],
-        ["", Paragraph("Premium Energy Diagnostics", styles["brand_subtitle"])],
-        ["", Spacer(1, 8)],
-        ["", Paragraph("PREMIUM TECHNICAL REPORT", styles["eyebrow"])],
+        [Paragraph("TDK&amp;ProService", styles["brand"])],
+        [Paragraph("Premium Energy Diagnostics", styles["brand_subtitle"])],
+        [Spacer(1, 16)],
+        [Paragraph("PREMIUM TECHNICAL REPORT", styles["eyebrow"])],
         [
-            "",
             Paragraph(
                 "Analiza faktur, kosztów energii i pracy instalacji PV",
                 styles["hero_title"],
             )
         ],
         [
-            "",
             Paragraph(
                 "Wstępna analiza kosztów energii, pracy PV i potencjalnych strat.<br/>"
                 "Przygotowana na podstawie danych przekazanych przez klienta.",
@@ -256,26 +254,24 @@ def _build_hero(styles: dict, report_meta: dict, status: dict) -> list:
             )
         ],
         [
-            "",
             _build_meta_table(report_meta, status, styles)
         ],
     ]
 
-    table = Table(hero_rows, colWidths=[34 * mm, 144 * mm])
+    table = Table(hero_rows, colWidths=[174 * mm])
     table.setStyle(
         TableStyle(
             [
                 ("BACKGROUND", (0, 0), (-1, -1), COLOR_PANEL),
-                ("BOX", (0, 0), (-1, -1), 1.0, COLOR_GOLD_DARK),
-                ("LINEBELOW", (0, 1), (-1, 1), 0.45, COLOR_GOLD_DARK),
-                ("SPAN", (0, 0), (0, 6)),
+                ("BOX", (0, 0), (-1, -1), 0.55, COLOR_BORDER),
+                ("LINEABOVE", (0, 0), (-1, 0), 1.0, COLOR_GOLD_DARK),
                 ("VALIGN", (0, 0), (-1, -1), "TOP"),
-                ("LEFTPADDING", (0, 0), (-1, -1), 17),
-                ("RIGHTPADDING", (0, 0), (-1, -1), 17),
-                ("TOPPADDING", (0, 0), (-1, -1), 8),
-                ("BOTTOMPADDING", (0, 0), (-1, -1), 8),
-                ("TOPPADDING", (0, 0), (0, 0), 20),
-                ("BOTTOMPADDING", (0, 6), (0, 6), 20),
+                ("LEFTPADDING", (0, 0), (-1, -1), 19),
+                ("RIGHTPADDING", (0, 0), (-1, -1), 19),
+                ("TOPPADDING", (0, 0), (-1, -1), 7),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 7),
+                ("TOPPADDING", (0, 0), (0, 0), 24),
+                ("BOTTOMPADDING", (0, 6), (0, 6), 24),
             ]
         )
     )
@@ -297,7 +293,7 @@ def _build_logo_block(styles: dict):
 def _build_meta_table(report_meta: dict, status: dict, styles: dict) -> Table:
     status_chip = Table(
         [[Paragraph(status["report_label"], styles["status"])]],
-        colWidths=[48 * mm],
+        colWidths=[43 * mm],
     )
     status_chip.setStyle(
         TableStyle(
@@ -320,14 +316,13 @@ def _build_meta_table(report_meta: dict, status: dict, styles: dict) -> Table:
                 status_chip,
             ]
         ],
-        colWidths=[76 * mm, 38 * mm, 48 * mm],
+        colWidths=[86 * mm, 34 * mm, 43 * mm],
     )
     meta.setStyle(
         TableStyle(
             [
                 ("BACKGROUND", (0, 0), (-1, -1), COLOR_BG),
-                ("BOX", (0, 0), (-1, -1), 0.6, COLOR_BORDER),
-                ("LINEBEFORE", (0, 0), (0, -1), 2.0, COLOR_GOLD),
+                ("BOX", (0, 0), (-1, -1), 0.45, COLOR_BORDER),
                 ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
                 ("LEFTPADDING", (0, 0), (-1, -1), 9),
                 ("RIGHTPADDING", (0, 0), (-1, -1), 9),
@@ -382,10 +377,8 @@ def _kpi_cell(label: str, value: str, background: str, accent: str, styles: dict
     cell = Table(
         [
             [Paragraph(label, styles["kpi_label"])],
-            [Spacer(1, 2)],
-            [Paragraph(value, styles["kpi_value"])],
             [Spacer(1, 4)],
-            [_progress_bar(accent)],
+            [Paragraph(value, styles["kpi_value"])],
         ],
         colWidths=[50.8 * mm],
     )
@@ -393,12 +386,12 @@ def _kpi_cell(label: str, value: str, background: str, accent: str, styles: dict
         TableStyle(
             [
                 ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor(background)),
-                ("BOX", (0, 0), (-1, -1), 0.7, COLOR_BORDER),
-                ("LINEBEFORE", (0, 0), (0, -1), 4, colors.HexColor(accent)),
-                ("LEFTPADDING", (0, 0), (-1, -1), 11),
-                ("RIGHTPADDING", (0, 0), (-1, -1), 11),
-                ("TOPPADDING", (0, 0), (-1, -1), 9),
-                ("BOTTOMPADDING", (0, 0), (-1, -1), 9),
+                ("BOX", (0, 0), (-1, -1), 0.55, COLOR_BORDER),
+                ("LINEABOVE", (0, 0), (-1, 0), 1.0, colors.HexColor(accent)),
+                ("LEFTPADDING", (0, 0), (-1, -1), 13),
+                ("RIGHTPADDING", (0, 0), (-1, -1), 13),
+                ("TOPPADDING", (0, 0), (-1, -1), 12),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 12),
             ]
         )
     )
