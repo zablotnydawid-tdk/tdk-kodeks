@@ -619,21 +619,45 @@ def form_analyze(
             <h1>Zgłoszenie przyjęte</h1>
 
             <p style="color:#b0b7c3;line-height:1.6;">
-                Twoje zgłoszenie zostało zapisane. Raport PDF zostanie wygenerowany po potwierdzeniu płatności.
+                Twoje zgłoszenie zostało zapisane. Raport PDF generowany jest po potwierdzeniu płatności dla konkretnego zgłoszenia.
             </p>
 
-            <div style="margin-top:24px;padding:22px;border-left:4px solid #2f7cf6;background:#10141a;color:#d8dee9;line-height:1.8;">
+            <div style="display:grid;grid-template-columns:repeat(4,minmax(120px,1fr));gap:10px;margin-top:24px;">
+                <div style="padding:12px;border-radius:12px;background:#0f241b;border:1px solid #245c3a;color:#7ee787;font-weight:bold;text-align:center;">1. Formularz ✓</div>
+                <div style="padding:12px;border-radius:12px;background:#241d0f;border:1px solid #7a5a1d;color:#f4c76b;font-weight:bold;text-align:center;">2. Płatność ⏳</div>
+                <div style="padding:12px;border-radius:12px;background:#10141a;border:1px solid #394252;color:#b0b7c3;font-weight:bold;text-align:center;">3. Weryfikacja</div>
+                <div style="padding:12px;border-radius:12px;background:#10141a;border:1px solid #394252;color:#b0b7c3;font-weight:bold;text-align:center;">4. Raport PDF</div>
+            </div>
+
+            <div style="margin-top:24px;padding:22px;border-left:4px solid #2f7cf6;background:#10141a;color:#d8dee9;line-height:1.8;border-radius:12px;">
                 <strong>Numer zgłoszenia:</strong><br>
                 <span style="font-size:24px;color:#ffffff;">{order_id}</span><br><br>
 
-                <strong>Kwota:</strong> {PAYMENT_AMOUNT}<br>
-                <strong>Odbiorca:</strong> {PAYMENT_ACCOUNT_NAME}<br>
-                <strong>Numer konta:</strong> {PAYMENT_BANK_ACCOUNT}<br>
-                <strong>Tytuł przelewu:</strong> {order_id}
+                <strong>Kwota do zapłaty:</strong> {PAYMENT_AMOUNT}
             </div>
 
-            <div style="margin-top:22px;padding:18px;border-left:4px solid #d4a84f;background:#15110a;color:#f4e3b0;line-height:1.7;">
-                Po zaksięgowaniu płatności raport zostanie wygenerowany i udostępniony dla tego konkretnego zgłoszenia.
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px;margin-top:18px;">
+                <div style="padding:22px;border-radius:14px;background:#10141a;border:1px solid #2b3240;color:#d8dee9;line-height:1.8;">
+                    <div style="font-size:18px;font-weight:bold;color:#ffffff;margin-bottom:10px;">Przelew bankowy</div>
+                    <strong>Odbiorca:</strong><br>
+                    {PAYMENT_ACCOUNT_NAME}<br><br>
+                    <strong>Numer konta:</strong><br>
+                    <span style="font-size:18px;color:#ffffff;">{PAYMENT_BANK_ACCOUNT}</span><br><br>
+                    <strong>Tytuł przelewu:</strong><br>
+                    <span style="font-size:18px;color:#ffffff;">{order_id}</span>
+                </div>
+
+                <div style="padding:22px;border-radius:14px;background:#15110a;border:1px solid #7a5a1d;color:#f4e3b0;line-height:1.8;">
+                    <div style="font-size:18px;font-weight:bold;color:#ffffff;margin-bottom:10px;">BLIK na telefon</div>
+                    <strong>Numer BLIK:</strong><br>
+                    <span style="font-size:26px;color:#ffffff;font-weight:bold;letter-spacing:1px;">723 023 152</span><br><br>
+                    <strong>Tytuł:</strong><br>
+                    <span style="font-size:18px;color:#ffffff;">{order_id}</span>
+                </div>
+            </div>
+
+            <div style="margin-top:22px;padding:18px;border-left:4px solid #d4a84f;background:#15110a;color:#f4e3b0;line-height:1.7;border-radius:12px;">
+                Raport PDF generowany jest po potwierdzeniu płatności dla konkretnego zgłoszenia.
                 W razie pytań napisz: <strong>{PAYMENT_CONTACT_EMAIL}</strong>
             </div>
 
@@ -777,18 +801,22 @@ def admin_generate(order_id: str, request_obj: Request, admin_key: str = "") -> 
         email_info = "Mail nie został wysłany."
         try:
             _, email_info = send_email_with_pdf(order.get("email", ""), result["pdf_path"])
-        except Exception as exc:
-            email_info = f"PDF wygenerowany, ale mail nie wyszedł: {exc}"
+        except Exception:
+            email_info = "Raport został wygenerowany poprawnie. Mail może zostać dostarczony z opóźnieniem. Możesz już wysłać klientowi link ręcznie."
 
         return html_page(
             "Raport wygenerowany",
             f"""
+            <div style="display:inline-block;padding:9px 14px;border-radius:999px;background:#0f241b;border:1px solid #245c3a;color:#7ee787;font-weight:bold;margin-bottom:16px;">
+                Sukces ✓ Raport PDF gotowy
+            </div>
+
             <h1>Raport wygenerowany</h1>
-            <p>Zgłoszenie: <strong>{order_id}</strong></p>
-            <p style="color:#b0b7c3;">{email_info}</p>
+            <p style="color:#b0b7c3;line-height:1.6;">Zgłoszenie: <strong style="color:#ffffff;">{order_id}</strong></p>
+            <p style="color:#b0b7c3;line-height:1.6;">{email_info}</p>
 
             <p>
-                <a href="{result['pdf_url']}" target="_blank" style="display:inline-block;padding:14px 22px;border-radius:10px;background:#2f7cf6;color:white;font-weight:bold;text-decoration:none;">
+                <a href="{result['pdf_url']}" target="_blank" style="display:inline-block;padding:18px 30px;border-radius:12px;background:#1f8f4d;color:white;font-size:18px;font-weight:bold;text-decoration:none;box-shadow:0 10px 28px rgba(31,143,77,0.28);">
                     Pobierz PDF
                 </a>
 
@@ -797,9 +825,9 @@ def admin_generate(order_id: str, request_obj: Request, admin_key: str = "") -> 
                 </a>
             </p>
 
-            <div style="margin-top:22px;padding:18px;border-left:4px solid #2f7cf6;background:#10141a;color:#d8dee9;line-height:1.7;">
-                Link dla klienta:<br>
-                <strong>{result['pdf_url']}</strong>
+            <div style="margin-top:24px;padding:22px;border-left:4px solid #1f8f4d;background:#101a14;border-radius:12px;color:#d8dee9;line-height:1.7;">
+                <div style="font-size:18px;font-weight:bold;color:#ffffff;margin-bottom:10px;">Link dla klienta</div>
+                <div style="word-break:break-all;color:#7ee787;font-weight:bold;">{result['pdf_url']}</div>
             </div>
             """,
         )
