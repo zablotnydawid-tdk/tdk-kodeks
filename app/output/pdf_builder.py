@@ -91,9 +91,9 @@ def generate_pdf(report_text: str, output_path: str) -> str:
     warning = _extract_data_warning(report_text)
 
     story.extend(_build_hero(styles, report_meta, status))
-    story.append(Spacer(1, 8))
-    story.extend(_build_kpi_cards(kpis, status, styles))
-    story.append(Spacer(1, 8))
+    story.append(Spacer(1, 10))
+    story.extend(_build_kpi_cards(kpis, styles))
+    story.append(Spacer(1, 10))
     story.extend(_build_interpretation_panel(status, warning, styles))
     story.append(PageBreak())
     story.extend(_build_operational_page(sections, styles))
@@ -204,8 +204,8 @@ def _build_styles() -> dict:
         "kpi_value": ParagraphStyle(
             "kpi_value",
             fontName=BOLD_FONT,
-            fontSize=15,
-            leading=18,
+            fontSize=17,
+            leading=20,
             textColor=COLOR_TEXT,
             alignment=TA_LEFT,
         ),
@@ -322,17 +322,17 @@ def _build_logo_block(styles: dict):
 def _build_meta_table(report_meta: dict, status: dict, styles: dict) -> Table:
     status_chip = Table(
         [[Paragraph(status["report_label"], styles["status"])]],
-        colWidths=[43 * mm],
+        colWidths=[58 * mm],
     )
     status_chip.setStyle(
         TableStyle(
             [
                 ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor(status["color"])),
                 ("BOX", (0, 0), (-1, -1), 0.7, colors.HexColor(status["border"])),
-                ("LEFTPADDING", (0, 0), (-1, -1), 8),
-                ("RIGHTPADDING", (0, 0), (-1, -1), 8),
-                ("TOPPADDING", (0, 0), (-1, -1), 7),
-                ("BOTTOMPADDING", (0, 0), (-1, -1), 7),
+                ("LEFTPADDING", (0, 0), (-1, -1), 10),
+                ("RIGHTPADDING", (0, 0), (-1, -1), 10),
+                ("TOPPADDING", (0, 0), (-1, -1), 8),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 8),
             ]
         )
     )
@@ -345,7 +345,7 @@ def _build_meta_table(report_meta: dict, status: dict, styles: dict) -> Table:
                 status_chip,
             ]
         ],
-        colWidths=[86 * mm, 34 * mm, 43 * mm],
+        colWidths=[68 * mm, 34 * mm, 58 * mm],
     )
     meta.setStyle(
         TableStyle(
@@ -363,7 +363,7 @@ def _build_meta_table(report_meta: dict, status: dict, styles: dict) -> Table:
     return meta
 
 
-def _build_kpi_cards(kpis: dict, status: dict, styles: dict) -> list:
+def _build_kpi_cards(kpis: dict, styles: dict) -> list:
     title = Table(
         [[Paragraph("PODSUMOWANIE WYNIKÓW", styles["section_title_light"])]],
         colWidths=[174 * mm],
@@ -385,10 +385,9 @@ def _build_kpi_cards(kpis: dict, status: dict, styles: dict) -> list:
         _kpi_cell("BEZ PV", kpis["cost_without_pv"], "#0d1016", "#d4a84f", styles),
         _kpi_cell("PO PV", kpis["cost_after_pv"], "#0d1016", "#1f8f4d", styles),
         _kpi_cell("RÓŻNICA", kpis["savings"], "#0d1016", "#8b3dff", styles),
-        _kpi_cell("EFEKTYWNOŚĆ", status["efficiency_label"], "#0d1016", status["color"], styles),
     ]
 
-    table = Table([cards], colWidths=[42.3 * mm, 42.3 * mm, 42.3 * mm, 42.3 * mm], hAlign="LEFT")
+    table = Table([cards], colWidths=[56.4 * mm, 56.4 * mm, 56.4 * mm], hAlign="LEFT")
     table.setStyle(
         TableStyle(
             [
@@ -410,7 +409,7 @@ def _kpi_cell(label: str, value: str, background: str, accent: str, styles: dict
             [Spacer(1, 2)],
             [Paragraph(value, styles["kpi_value"])],
         ],
-        colWidths=[37.3 * mm],
+        colWidths=[51 * mm],
     )
     cell.setStyle(
         TableStyle(
@@ -443,46 +442,38 @@ def _progress_bar(accent: str) -> Table:
 
 
 def _build_interpretation_panel(status: dict, warning: str | None, styles: dict) -> list:
-    status_chip = Table([[Paragraph(status["efficiency_label"], styles["status"])]], colWidths=[46 * mm])
-    status_chip.setStyle(
-        TableStyle(
-            [
-                ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor(status["color"])),
-                ("BOX", (0, 0), (-1, -1), 0.7, colors.HexColor(status["border"])),
-                ("TOPPADDING", (0, 0), (-1, -1), 6),
-                ("BOTTOMPADDING", (0, 0), (-1, -1), 6),
-            ]
-        )
-    )
+    warning_rows = []
+    if warning:
+        warning_rows = [
+            [Paragraph("Wykryto dane wymagające dodatkowej weryfikacji.", styles["section_title_light"])],
+            [Paragraph(warning, styles["body_bold"])],
+        ]
 
-    warning_text = warning or "Brak nietypowych proporcji wykrytych w prostym checku danych wejściowych."
-    warning_title = "Check danych" if warning else "Check danych"
-    warning_style = styles["body_bold"] if warning else styles["body"]
-
-    table = Table(
+    rows = [
         [
-            [Paragraph("Krótka interpretacja", styles["section_title_light"]), status_chip],
-            [
-                Paragraph(status["description"], styles["body"]),
-                Paragraph(
-                    "Wynik należy traktować jako sygnał kierunkowy. Może wskazać potencjał lub ryzyko, ale nie przesądza o rzeczywistej efektywności systemu.",
-                    styles["body"],
-                ),
-            ],
-            [
-                Paragraph(warning_title, styles["section_title_light"]),
-                Paragraph(warning_text, warning_style),
-            ],
+            Paragraph(
+                f"Poziom efektywności: {status['efficiency_label']}",
+                styles["section_title_light"],
+            )
         ],
-        colWidths=[84 * mm, 90 * mm],
-    )
+        [Paragraph(status["description"], styles["body"])],
+        [
+            Paragraph(
+                "Wynik należy traktować jako sygnał kierunkowy. Może wskazać potencjał lub ryzyko, ale nie przesądza o rzeczywistej efektywności systemu.",
+                styles["body"],
+            )
+        ],
+        *warning_rows,
+    ]
+
+    table = Table(rows, colWidths=[174 * mm])
     table.setStyle(
         TableStyle(
             [
                 ("BACKGROUND", (0, 0), (-1, -1), COLOR_PANEL_2),
                 ("BOX", (0, 0), (-1, -1), 0.7, COLOR_GOLD_DARK),
                 ("LINEBEFORE", (0, 0), (0, -1), 3, COLOR_PURPLE),
-                ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+                ("VALIGN", (0, 0), (-1, -1), "TOP"),
                 ("LEFTPADDING", (0, 0), (-1, -1), 12),
                 ("RIGHTPADDING", (0, 0), (-1, -1), 12),
                 ("TOPPADDING", (0, 0), (-1, -1), 8),
@@ -519,29 +510,16 @@ def _build_operational_page(sections: list[tuple[str, list[str]]], styles: dict)
         "pełna diagnostyka oparta na danych rzeczywistych."
     )
 
-    cards = [
-        _compact_card("Dane wejściowe", data_lines, styles),
-        _compact_card("Co może wpływać na wynik", influences, styles),
-        _compact_card("Czego analiza jeszcze nie obejmuje", excluded, styles),
-        _compact_card("Następny krok", [next_text, *next_steps[:2]], styles),
+    sections_flow = [
+        _full_width_section("Dane wejściowe", data_lines, styles),
+        Spacer(1, 7),
+        _full_width_section("Co może wpływać na wynik", influences, styles),
+        Spacer(1, 7),
+        _full_width_section("Czego analiza jeszcze nie obejmuje", excluded, styles),
+        Spacer(1, 7),
+        _full_width_section("Następny krok", [next_text, *next_steps[:2]], styles),
+        Spacer(1, 7),
     ]
-
-    grid = Table(
-        [[cards[0], cards[1]], [cards[2], cards[3]]],
-        colWidths=[85 * mm, 85 * mm],
-        rowHeights=None,
-    )
-    grid.setStyle(
-        TableStyle(
-            [
-                ("VALIGN", (0, 0), (-1, -1), "TOP"),
-                ("LEFTPADDING", (0, 0), (-1, -1), 0),
-                ("RIGHTPADDING", (0, 0), (-1, -1), 0),
-                ("TOPPADDING", (0, 0), (-1, -1), 0),
-                ("BOTTOMPADDING", (0, 0), (-1, -1), 8),
-            ]
-        )
-    )
 
     contact = Table(
         [
@@ -571,15 +549,15 @@ def _build_operational_page(sections: list[tuple[str, list[str]]], styles: dict)
         )
     )
 
-    return [grid, Spacer(1, 5), contact]
+    return [*sections_flow, contact]
 
 
-def _compact_card(title: str, lines: list[str], styles: dict) -> Table:
+def _full_width_section(title: str, lines: list[str], styles: dict) -> Table:
     clean_lines = [line for line in lines if line.strip()]
     rows = [[Paragraph(_escape(title), styles["section_title"])]]
-    rows.extend([[Paragraph(_format_report_line(line), styles["body"]) ] for line in clean_lines[:6]])
+    rows.extend([[Paragraph(_format_report_line(line), styles["body"])] for line in clean_lines[:6]])
 
-    card = Table(rows, colWidths=[82 * mm])
+    card = Table(rows, colWidths=[174 * mm])
     card.setStyle(
         TableStyle(
             [
