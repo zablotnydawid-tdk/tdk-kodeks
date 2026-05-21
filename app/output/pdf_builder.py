@@ -77,7 +77,7 @@ def generate_pdf(report_text: str, output_path: str) -> str:
         leftMargin=16 * mm,
         topMargin=16 * mm,
         bottomMargin=16 * mm,
-        title="TDK&ProService - Raport analizy energii",
+        title="TDK&ProService - Wstępna ocena systemu OZE",
         author="TDK&ProService",
     )
 
@@ -91,6 +91,8 @@ def generate_pdf(report_text: str, output_path: str) -> str:
 
     story.extend(_build_hero(styles, report_meta, status))
     story.append(Spacer(1, 12))
+    story.extend(_build_scope_panel(styles))
+    story.append(Spacer(1, 10))
     story.extend(_build_kpi_cards(kpis, styles))
     story.append(Spacer(1, 10))
     story.extend(_build_status_panel(status, styles))
@@ -237,20 +239,27 @@ def _build_styles() -> dict:
 def _build_hero(styles: dict, report_meta: dict, status: dict) -> list:
     hero_rows = [
         [Paragraph("TDK&amp;ProService", styles["brand"])],
-        [Paragraph("Premium Energy Diagnostics", styles["brand_subtitle"])],
+        [Paragraph("Screening techniczno-energetyczny", styles["brand_subtitle"])],
         [Spacer(1, 16)],
-        [Paragraph("PREMIUM TECHNICAL REPORT", styles["eyebrow"])],
+        [Paragraph("WSTĘPNA OCENA SYSTEMU OZE", styles["eyebrow"])],
         [
             Paragraph(
-                "Analiza faktur, kosztów energii i pracy instalacji PV",
+                "Wstępna analiza kosztów i pracy instalacji",
                 styles["hero_title"],
             )
         ],
         [
             Paragraph(
-                "Wstępna analiza kosztów energii, pracy PV i potencjalnych strat.<br/>"
-                "Przygotowana na podstawie danych przekazanych przez klienta.",
+                "Screening techniczno-energetyczny na podstawie danych podanych przez użytkownika.<br/>"
+                "To pierwszy etap diagnostyki TDK&amp;ProService.",
                 styles["subtitle"],
+            )
+        ],
+        [
+            Paragraph(
+                "Ten dokument nie jest pełnym audytem technicznym ani opinią rzeczoznawczą. "
+                "To wstępna ocena kierunkowa przygotowana na podstawie ograniczonych danych wejściowych.",
+                styles["body_bold"],
             )
         ],
         [
@@ -271,11 +280,54 @@ def _build_hero(styles: dict, report_meta: dict, status: dict) -> list:
                 ("TOPPADDING", (0, 0), (-1, -1), 7),
                 ("BOTTOMPADDING", (0, 0), (-1, -1), 7),
                 ("TOPPADDING", (0, 0), (0, 0), 24),
-                ("BOTTOMPADDING", (0, 6), (0, 6), 24),
+                ("BOTTOMPADDING", (0, 7), (0, 7), 24),
             ]
         )
     )
 
+    return [table]
+
+
+def _build_scope_panel(styles: dict) -> list:
+    scope_items = [
+        "zużycie miesięczne",
+        "cena energii",
+        "moc instalacji PV",
+        "miesięczna produkcja PV",
+        "podstawowe porównanie kosztów",
+    ]
+    excluded_items = [
+        "faktury i rozliczenia szczegółowe",
+        "profil autokonsumpcji godzinowej",
+        "dane z falownika",
+        "historia pracy instalacji",
+        "ustawienia pompy ciepła",
+        "magazyn energii",
+        "taryfy dynamiczne",
+        "pomiary i oględziny instalacji",
+    ]
+
+    scope = [Paragraph("Zakres obecnej oceny", styles["section_title_light"])]
+    scope.extend(Paragraph(f"• {item}", styles["body"]) for item in scope_items)
+
+    excluded = [Paragraph("Czego ta analiza jeszcze nie obejmuje", styles["section_title_light"])]
+    excluded.extend(Paragraph(f"• {item}", styles["body"]) for item in excluded_items)
+
+    table = Table([[scope, excluded]], colWidths=[86 * mm, 86 * mm])
+    table.setStyle(
+        TableStyle(
+            [
+                ("BACKGROUND", (0, 0), (-1, -1), COLOR_PANEL),
+                ("BOX", (0, 0), (-1, -1), 0.7, COLOR_BORDER),
+                ("LINEABOVE", (0, 0), (-1, 0), 0.9, COLOR_GOLD_DARK),
+                ("VALIGN", (0, 0), (-1, -1), "TOP"),
+                ("LEFTPADDING", (0, 0), (-1, -1), 12),
+                ("RIGHTPADDING", (0, 0), (-1, -1), 12),
+                ("TOPPADDING", (0, 0), (-1, -1), 10),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 10),
+            ]
+        )
+    )
     return [table]
 
 
@@ -434,7 +486,7 @@ def _build_status_panel(status: dict, styles: dict) -> list:
             [
                 Paragraph(status["description"], styles["body"]),
                 Paragraph(
-                    "Raport ma charakter wstępnej analizy technicznej i nie stanowi pełnego audytu ani opinii rzeczoznawczej.",
+                    "Wynik należy traktować jako sygnał kierunkowy. Może wskazać potencjał lub ryzyko, ale nie przesądza o rzeczywistej efektywności systemu.",
                     styles["body"],
                 ),
             ],
@@ -505,14 +557,11 @@ def _build_section(title: str, lines: list[str], styles: dict) -> list:
 
 def _build_diagnostics_panel(styles: dict) -> list:
     items = [
-        "ukryte straty",
-        "błędy konfiguracji",
-        "problemy autokonsumpcji",
-        "błędne taryfy",
-        "straty pracy instalacji PV",
-        "niewłaściwe ustawienia urządzeń",
+        "Jeżeli wynik budzi wątpliwości albo koszty energii nadal są wysokie mimo instalacji PV, kolejnym krokiem powinna być pełna diagnostyka TDK&ProService.",
+        "Pełna diagnostyka powinna opierać się na fakturach, danych z urządzeń i historii pracy systemu.",
+        "Za analizą stoi TDK&ProService — praktyka terenowa Dawida Zabłotnego w obszarze fotowoltaiki, pomp ciepła, magazynów energii i kosztów utraconej energii.",
     ]
-    rows = [[Paragraph("Pełna diagnostyka może wykryć", styles["section_title_light"])]]
+    rows = [[Paragraph("Zalecany następny krok", styles["section_title_light"])]]
     rows.extend([[Paragraph(f"• {item}", styles["body"])] for item in items])
 
     table = Table(rows, colWidths=[174 * mm])
@@ -542,7 +591,7 @@ def _build_footer_cta(styles: dict) -> list:
 
     cta_table = Table(
         [
-            [Paragraph("Final CTA premium", styles["section_title_light"])],
+            [Paragraph("Kolejny etap diagnostyki", styles["section_title_light"])],
             [Paragraph(cta_text, styles["cta"])],
             [Paragraph("kontakt@tdkproservice.pl • TDK&amp;ProService", styles["body_bold"])],
         ],
@@ -669,7 +718,7 @@ def _extract_report_status(report_text: str, kpis: dict) -> dict:
             "efficiency_label": "wysoka efektywność",
             "color": "#1f8f4d",
             "border": "#176b39",
-            "description": "Wstępny wynik jest korzystny, jednak pełna diagnostyka może wykryć ukryte straty.",
+            "description": "Wstępny wynik jest korzystny, ale nie zastępuje weryfikacji na danych rzeczywistych.",
         }
 
     if all(value != "brak danych" for value in kpis.values()):
@@ -678,7 +727,7 @@ def _extract_report_status(report_text: str, kpis: dict) -> dict:
             "efficiency_label": "dane kompletne",
             "color": "#8b3dff",
             "border": "#3b1b73",
-            "description": "Raport zawiera komplet głównych wskaźników kosztowych dla danych wejściowych.",
+            "description": "Ocena zawiera komplet głównych wskaźników kosztowych dla danych wejściowych.",
         }
 
     return {
@@ -686,7 +735,7 @@ def _extract_report_status(report_text: str, kpis: dict) -> dict:
         "efficiency_label": "dane wstępne",
         "color": "#d4a84f",
         "border": "#8a641b",
-        "description": "Część danych wymaga doprecyzowania przed pełnym audytem technicznym.",
+        "description": "Część danych wymaga doprecyzowania przed pełną diagnostyką techniczną.",
     }
 
 

@@ -9,7 +9,7 @@ def build_report(raw_input: str, selected_mask: str, process_result: dict | None
 
     return "\n".join(
         [
-            "=== RAPORT WSTĘPNEJ ANALIZY ENERGII TDK&ProService ===",
+            "=== WSTĘPNA OCENA SYSTEMU OZE TDK&ProService ===",
             "",
             "1. DANE DO ANALIZY",
             *_format_input_data(data),
@@ -147,14 +147,14 @@ def _build_recommendation(efficiency: str | None) -> str:
     if efficiency == "wysoka efektywność":
         return (
             "Wstępny wynik jest korzystny, jednak aby potwierdzić rzeczywistą efektywność "
-            "i wykluczyć ukryte straty, zalecana jest pełna analiza techniczna oparta "
+            "i wykluczyć ukryte straty, zalecana jest pełna diagnostyka techniczna oparta "
             "na danych rzeczywistych, fakturach i historii pracy instalacji."
         )
 
     return (
         "Do rzetelnej rekomendacji potrzebne jest uzupełnienie danych o zużyciu, cenie energii, "
-        "mocy PV i miesięcznej produkcji. Bez kompletu danych raport należy traktować wyłącznie "
-        "jako wstępną informację."
+        "mocy PV i miesięcznej produkcji. Bez kompletu danych wynik należy traktować wyłącznie "
+        "jako wstępną informację kierunkową."
     )
 
 
@@ -249,7 +249,7 @@ def _build_next_steps(data: dict) -> list[str]:
 
 def _build_risk_notes() -> list[str]:
     return [
-        "- Raport oparty jest na danych deklarowanych przez użytkownika.",
+        "- Ocena oparta jest na danych deklarowanych przez użytkownika.",
         "- Rzeczywista efektywność może różnić się od wyniku w zależności od taryfy, autokonsumpcji, ustawień instalacji i sposobu rozliczania.",
         "- Wynik nie stanowi pełnego audytu technicznego ani opinii rzeczoznawczej.",
         "- Pełna diagnostyka wymaga analizy faktur, danych z urządzeń oraz sposobu pracy instalacji w czasie.",
@@ -258,9 +258,9 @@ def _build_risk_notes() -> list[str]:
 
 def _build_cta() -> str:
     return (
-        "Jeśli chcesz sprawdzić, czy instalacja rzeczywiście pracuje optymalnie "
-        "i czy nie generuje ukrytych strat, skontaktuj się z TDK&ProService.\n"
-        "Analiza wykonywana jest indywidualnie na podstawie danych rzeczywistych."
+        "Jeżeli wynik budzi wątpliwości albo koszty energii nadal są wysokie mimo instalacji PV, "
+        "kolejnym krokiem powinna być pełna diagnostyka TDK&ProService oparta na fakturach, "
+        "danych z urządzeń i historii pracy systemu."
     )
 
 
