@@ -28,6 +28,8 @@ load_dotenv()
 
 REPORTS_DIR = Path("data") / "reports"
 REPORTS_DIR.mkdir(parents=True, exist_ok=True)
+MAIL_LOG_PATH = Path("data") / "logs" / "mail_failures.log"
+MAIL_LOG_PATH.parent.mkdir(parents=True, exist_ok=True)
 
 order_store = FileSystemOrderStore()
 
@@ -189,6 +191,40 @@ def html_page(title: str, body: str) -> str:
     """
 
 
+def log_mail_failure(recipient: str, exc: Exception) -> None:
+    timestamp = datetime.now().isoformat(timespec="seconds")
+    error_type = type(exc).__name__
+    MAIL_LOG_PATH.parent.mkdir(parents=True, exist_ok=True)
+    MAIL_LOG_PATH.write_text(
+        "",
+        encoding="utf-8",
+    ) if not MAIL_LOG_PATH.exists() else None
+    with MAIL_LOG_PATH.open("a", encoding="utf-8") as handle:
+        handle.write(
+            f"{timestamp}\trecipient={recipient}\terror_type={error_type}\tmessage={str(exc)}\n"
+        )
+
+
+def update_order_mail_status(
+    order_id: str,
+    field_prefix: str,
+    status: str,
+    info: str,
+    error: Exception | None = None,
+) -> dict:
+    order = order_store.get_order(order_id)
+    now = datetime.now().isoformat(timespec="seconds")
+    order[f"{field_prefix}_status"] = status
+    order[f"{field_prefix}_info"] = info
+    order[f"{field_prefix}_updated_at"] = now
+    if error is not None:
+        order[f"{field_prefix}_error_type"] = type(error).__name__
+    else:
+        order.pop(f"{field_prefix}_error_type", None)
+    order_store.update_order(order_id, order)
+    return order
+
+
 def _smtp_config() -> dict:
     return {
         "host": os.getenv("SMTP_HOST"),
@@ -299,6 +335,23 @@ def send_lead_notification(
 
     _send_message(message)
     return True, "Lead został wysłany na kontakt@tdkproservice.pl."
+
+
+def mail_status_badge(status: str | None) -> str:
+    styles = {
+        "MAIL_SENT": ("Mail wysłany", "#0f241b", "#245c3a", "#7ee787"),
+        "MAIL_PENDING": ("Mail oczekuje", "#241d0f", "#7a5a1d", "#f4c76b"),
+        "MAIL_NOT_CONFIRMED": ("Mail niepotwierdzony", "#2d1111", "#7a2b2b", "#ff9b9b"),
+    }
+    label, background, border, color = styles.get(
+        status or "MAIL_PENDING",
+        ("Mail oczekuje", "#241d0f", "#7a5a1d", "#f4c76b"),
+    )
+    return (
+        f'<span style="display:inline-block;padding:8px 11px;border-radius:999px;'
+        f'background:{background};border:1px solid {border};color:{color};'
+        f'font-size:13px;font-weight:bold;white-space:nowrap;">{label}</span>'
+    )
 
 
 @app.get("/", response_class=HTMLResponse)
@@ -1111,6 +1164,8 @@ def form_analyze(
             "pdf_url": None,
             "pdf_path": None,
             "base_url": base_url,
+            "lead_mail_status": "MAIL_PENDING",
+            "client_mail_status": "MAIL_PENDING",
         }
         order_store.create_order(order)
 
@@ -1124,8 +1179,21 @@ def form_analyze(
                 pv_monthly_production_kwh=pv_monthly_production_kwh,
                 pdf_url=f"Zgłoszenie zapisane: {order_id}",
             )
-        except Exception:
-            pass
+            update_order_mail_status(
+                order_id,
+                "lead_mail",
+                "MAIL_SENT",
+                "Powiadomienie operatora zostało wysłane.",
+            )
+        except Exception as exc:
+            log_mail_failure(LEAD_NOTIFY_EMAIL, exc)
+            update_order_mail_status(
+                order_id,
+                "lead_mail",
+                "MAIL_NOT_CONFIRMED",
+                "Powiadomienie e-mail nie zostało potwierdzone. Zgłoszenie jest zapisane w panelu.",
+                exc,
+            )
 
         return html_page(
             "TDK&ProService | Płatność",
@@ -1138,6 +1206,10 @@ def form_analyze(
 
             <p style="margin-top:12px;color:#d4a84f;line-height:1.6;">
                 PDF nie jest pełnym audytem technicznym. To pierwszy etap oceny, oparty na danych wpisanych w formularzu.
+            </p>
+
+            <p style="margin-top:12px;color:#b0b7c3;line-height:1.6;">
+                Zgłoszenie zostało zapisane. W przypadku problemów z dostarczeniem wiadomości operator może skontaktować się inną drogą.
             </p>
 
             <div style="display:grid;grid-template-columns:repeat(4,minmax(120px,1fr));gap:10px;margin-top:24px;">
@@ -1241,7 +1313,7 @@ def admin_orders(admin_key: str = "") -> str:
     if not orders:
         rows = """
         <tr>
-            <td colspan="7" style="padding:14px;color:#b0b7c3;">Brak zgłoszeń.</td>
+            <td colspan="8" style="padding:14px;color:#b0b7c3;">Brak zgłoszeń.</td>
         </tr>
         """
     else:
@@ -1254,9 +1326,17 @@ def admin_orders(admin_key: str = "") -> str:
             created_at = order.get("created_at", "")
             amount = order.get("amount", PAYMENT_AMOUNT)
             pdf_url = order.get("pdf_url")
+            client_mail_status = order.get("client_mail_status", "MAIL_PENDING")
+            mail_html = mail_status_badge(client_mail_status)
+            retry_html = ""
+            if pdf_url and client_mail_status != "MAIL_SENT":
+                retry_html = f"""
+                <a href="/admin/retry-mail/{order_id}?admin_key={admin_key}" style="display:inline-block;margin-top:8px;padding:9px 12px;border-radius:9px;background:#241d0f;border:1px solid #7a5a1d;color:#f4c76b;font-weight:bold;text-decoration:none;white-space:nowrap;">Ponów mail</a>
+                """
             if pdf_url:
                 action = f"""
                 <a href="{pdf_url}" target="_blank" style="display:inline-block;padding:11px 15px;border-radius:10px;background:#0f241b;border:1px solid #245c3a;color:#7ee787;font-weight:bold;text-decoration:none;white-space:nowrap;">Pobierz PDF</a>
+                {retry_html}
                 """
             else:
                 action = f"""
@@ -1272,6 +1352,7 @@ def admin_orders(admin_key: str = "") -> str:
                 <td style="padding:16px 14px;border-top:1px solid #2b3240;color:#d8dee9;">{email}</td>
                 <td style="padding:16px 14px;border-top:1px solid #2b3240;color:#ffffff;font-weight:bold;white-space:nowrap;">{amount}</td>
                 <td style="padding:16px 14px;border-top:1px solid #2b3240;">{status_html}</td>
+                <td style="padding:16px 14px;border-top:1px solid #2b3240;">{mail_html}</td>
                 <td style="padding:16px 14px;border-top:1px solid #2b3240;">{action}</td>
             </tr>
             """
@@ -1286,7 +1367,7 @@ def admin_orders(admin_key: str = "") -> str:
         </p>
 
         <div style="margin-top:24px;overflow-x:auto;border:1px solid #2b3240;border-radius:16px;background:#10141a;box-shadow:0 18px 48px rgba(0,0,0,0.28);">
-            <table style="width:100%;min-width:780px;border-collapse:collapse;color:#d8dee9;">
+            <table style="width:100%;min-width:900px;border-collapse:collapse;color:#d8dee9;">
                 <thead>
                     <tr style="text-align:left;color:#ffffff;background:#151b24;">
                         <th style="padding:14px;">Data</th>
@@ -1294,6 +1375,7 @@ def admin_orders(admin_key: str = "") -> str:
                         <th style="padding:14px;">Email</th>
                         <th style="padding:14px;">Kwota</th>
                         <th style="padding:14px;">Status</th>
+                        <th style="padding:14px;">Mail</th>
                         <th style="padding:14px;">Akcja</th>
                     </tr>
                 </thead>
@@ -1320,15 +1402,26 @@ def admin_generate(order_id: str, request_obj: Request, admin_key: str = "") -> 
 
         if order.get("pdf_url"):
             pdf_url = order["pdf_url"]
+            client_mail_status = order.get("client_mail_status", "MAIL_PENDING")
+            mail_html = mail_status_badge(client_mail_status)
+            retry_html = ""
+            if client_mail_status != "MAIL_SENT":
+                retry_html = f"""
+                <a href="/admin/retry-mail/{order_id}?admin_key={admin_key}" style="display:inline-block;padding:14px 22px;border-radius:10px;background:#241d0f;border:1px solid #7a5a1d;color:#f4c76b;font-weight:bold;text-decoration:none;margin-left:10px;">
+                    Ponów wysyłkę maila
+                </a>
+                """
             return html_page(
                 "PDF już istnieje",
                 f"""
                 <h1>PDF wstępnej oceny już był wygenerowany</h1>
                 <p>Zgłoszenie: <strong>{order_id}</strong></p>
+                <p>Status maila: {mail_html}</p>
                 <p>
                     <a href="{pdf_url}" target="_blank" style="display:inline-block;padding:14px 22px;border-radius:10px;background:#2f7cf6;color:white;font-weight:bold;text-decoration:none;">
                         Pobierz PDF
                     </a>
+                    {retry_html}
                     <a href="/admin/orders?admin_key={admin_key}" style="display:inline-block;padding:14px 22px;border-radius:10px;border:1px solid #394252;color:#d8dee9;font-weight:bold;text-decoration:none;margin-left:10px;">
                         Wróć do panelu
                     </a>
@@ -1349,8 +1442,25 @@ def admin_generate(order_id: str, request_obj: Request, admin_key: str = "") -> 
         email_info = "Mail nie został wysłany."
         try:
             _, email_info = send_email_with_pdf(order.get("email", ""), result["pdf_path"])
-        except Exception:
-            email_info = "PDF został wygenerowany poprawnie. Mail może zostać dostarczony z opóźnieniem. Możesz już wysłać klientowi link ręcznie."
+            order = update_order_mail_status(
+                order_id,
+                "client_mail",
+                "MAIL_SENT",
+                email_info,
+            )
+        except Exception as exc:
+            log_mail_failure(order.get("email", ""), exc)
+            email_info = (
+                "PDF został wygenerowany poprawnie. Mail nie został potwierdzony. "
+                "Zgłoszenie zostało zapisane. W przypadku problemów z dostarczeniem wiadomości operator może skontaktować się inną drogą."
+            )
+            order = update_order_mail_status(
+                order_id,
+                "client_mail",
+                "MAIL_NOT_CONFIRMED",
+                email_info,
+                exc,
+            )
 
         return html_page(
             "PDF wygenerowany",
@@ -1412,6 +1522,98 @@ def admin_generate(order_id: str, request_obj: Request, admin_key: str = "") -> 
             "Błąd generowania",
             f"""
             <h1>Nie udało się wygenerować raportu</h1>
+            <p>{exc}</p>
+            <p><a style="color:#4d95ff;" href="/admin/orders?admin_key={admin_key}">Wróć do panelu</a></p>
+            """,
+        )
+
+
+@app.get("/admin/retry-mail/{order_id}", response_class=HTMLResponse)
+def admin_retry_mail(order_id: str, admin_key: str = "") -> str:
+    if not verify_admin_key(admin_key):
+        return html_page(
+            "Brak dostępu",
+            """
+            <h1>Brak dostępu</h1>
+            <p>Podaj poprawny admin_key.</p>
+            """,
+        )
+
+    try:
+        order = order_store.get_order(order_id)
+        pdf_path = order.get("pdf_path")
+        pdf_url = order.get("pdf_url")
+
+        if not pdf_path or not Path(pdf_path).exists():
+            return html_page(
+                "Brak PDF",
+                f"""
+                <h1>Nie można ponowić wysyłki</h1>
+                <p>Dla zgłoszenia <strong>{order_id}</strong> nie znaleziono lokalnego pliku PDF.</p>
+                <p>Jeśli PDF nie został jeszcze wygenerowany, najpierw użyj przycisku <strong>GENERUJ</strong>.</p>
+                <p><a style="color:#4d95ff;" href="/admin/orders?admin_key={admin_key}">Wróć do panelu</a></p>
+                """,
+            )
+
+        try:
+            _, email_info = send_email_with_pdf(order.get("email", ""), pdf_path)
+            order = update_order_mail_status(
+                order_id,
+                "client_mail",
+                "MAIL_SENT",
+                email_info,
+            )
+            result_box = """
+            <div style="display:inline-block;padding:9px 14px;border-radius:999px;background:#0f241b;border:1px solid #245c3a;color:#7ee787;font-weight:bold;margin-bottom:16px;">
+                Mail wysłany
+            </div>
+            """
+        except Exception as exc:
+            log_mail_failure(order.get("email", ""), exc)
+            email_info = (
+                "Mail nadal nie został potwierdzony. PDF i zgłoszenie są zapisane. "
+                "Operator może wysłać link ręcznie lub skontaktować się inną drogą."
+            )
+            order = update_order_mail_status(
+                order_id,
+                "client_mail",
+                "MAIL_NOT_CONFIRMED",
+                email_info,
+                exc,
+            )
+            result_box = """
+            <div style="display:inline-block;padding:9px 14px;border-radius:999px;background:#2d1111;border:1px solid #7a2b2b;color:#ff9b9b;font-weight:bold;margin-bottom:16px;">
+                Mail niepotwierdzony
+            </div>
+            """
+
+        return html_page(
+            "Ponowna wysyłka maila",
+            f"""
+            {result_box}
+            <h1>Ponowna próba wysyłki maila</h1>
+            <p>Zgłoszenie: <strong>{order_id}</strong></p>
+            <p>Status maila: {mail_status_badge(order.get("client_mail_status"))}</p>
+            <p style="color:#b0b7c3;line-height:1.6;">{email_info}</p>
+            <p style="color:#b0b7c3;line-height:1.6;">
+                Zgłoszenie zostało zapisane. W przypadku problemów z dostarczeniem wiadomości operator może skontaktować się inną drogą.
+            </p>
+            <p>
+                <a href="{pdf_url}" target="_blank" style="display:inline-block;padding:14px 22px;border-radius:10px;background:#2f7cf6;color:white;font-weight:bold;text-decoration:none;">
+                    Pobierz PDF
+                </a>
+                <a href="/admin/orders?admin_key={admin_key}" style="display:inline-block;padding:14px 22px;border-radius:10px;border:1px solid #394252;color:#d8dee9;font-weight:bold;text-decoration:none;margin-left:10px;">
+                    Wróć do panelu
+                </a>
+            </p>
+            """,
+        )
+
+    except Exception as exc:
+        return html_page(
+            "Błąd wysyłki",
+            f"""
+            <h1>Nie udało się ponowić wysyłki maila</h1>
             <p>{exc}</p>
             <p><a style="color:#4d95ff;" href="/admin/orders?admin_key={admin_key}">Wróć do panelu</a></p>
             """,
