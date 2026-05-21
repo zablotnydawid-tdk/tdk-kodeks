@@ -388,6 +388,13 @@ def home() -> str:
                 font-size: 15px;
             }
 
+            .helper {
+                margin: -14px 0 22px;
+                color: #9da7b3;
+                line-height: 1.55;
+                font-size: 13px;
+            }
+
             input:focus {
                 outline: none;
                 border-color: #4da3ff;
@@ -465,6 +472,28 @@ def home() -> str:
                 font-size: 14px;
             }
 
+            .data-guide {
+                margin-top: 22px;
+                padding: 18px;
+                border-radius: 12px;
+                background: #10141a;
+                border: 1px solid #2b3240;
+                color: #d8dee9;
+                line-height: 1.65;
+                font-size: 14px;
+            }
+
+            .data-guide h3 {
+                margin: 0 0 10px;
+                color: #ffffff;
+                font-size: 18px;
+            }
+
+            .data-guide ul {
+                margin: 0;
+                padding-left: 20px;
+            }
+
             @media (max-width: 900px) {
                 .container {
                     flex-direction: column;
@@ -491,7 +520,7 @@ def home() -> str:
             <div class="container">
 
                 <div class="form-box">
-                    <form method="post" action="/form-analyze">
+                    <form method="post" action="/form-analyze" id="kodeks-form">
 
                         <label>Email</label>
                         <input type="email" name="email" required>
@@ -507,6 +536,12 @@ def home() -> str:
 
                         <label>Miesięczna produkcja PV</label>
                         <input type="number" step="0.01" name="pv_monthly_production_kwh" required>
+                        <div class="helper">
+                            Podaj orientacyjną produkcję miesięczną instalacji PV w kWh.
+                            Uwaga: wartości kilku tysięcy kWh miesięcznie są zwykle nietypowe
+                            dla domowych instalacji i mogą oznaczać pomylenie danych rocznych
+                            z miesięcznymi.
+                        </div>
 
                         <div style="margin:18px 0;padding:16px;border-left:4px solid #d4a84f;background:#15110a;color:#f4e3b0;line-height:1.65;border-radius:12px;font-size:14px;">
                             To nie jest pełny audyt techniczny. Wynik opiera się na danych wpisanych
@@ -520,6 +555,16 @@ def home() -> str:
                         </button>
 
                     </form>
+
+                    <div class="data-guide">
+                        <h3>Jak przygotować dane?</h3>
+                        <ul>
+                            <li>Zużycie miesięczne znajdziesz na fakturze energii.</li>
+                            <li>Produkcję PV sprawdzisz w aplikacji falownika.</li>
+                            <li>Upewnij się, czy wpisujesz dane miesięczne, a nie roczne.</li>
+                            <li>W przypadku przybliżonych danych wynik ma charakter orientacyjny.</li>
+                        </ul>
+                    </div>
                 </div>
 
                 <div class="side">
@@ -566,6 +611,35 @@ def home() -> str:
             </div>
 
         </div>
+        <script>
+            const form = document.getElementById("kodeks-form");
+
+            form.addEventListener("submit", function(event) {
+                const consumption = Number(form.elements["consumption_kwh"].value || 0);
+                const pvPower = Number(form.elements["pv_power_kw"].value || 0);
+                const pvProduction = Number(form.elements["pv_monthly_production_kwh"].value || 0);
+                const warnings = [];
+
+                if (pvPower > 0 && pvPower <= 15 && pvProduction > 2500) {
+                    warnings.push(
+                        "Wprowadzona miesięczna produkcja PV wygląda nietypowo dla tej mocy instalacji. Sprawdź, czy nie wpisano produkcji rocznej zamiast miesięcznej."
+                    );
+                }
+
+                if (consumption > 5000) {
+                    warnings.push(
+                        "Wartość wygląda bardzo wysoko dla gospodarstwa domowego. Sprawdź poprawność danych."
+                    );
+                }
+
+                if (warnings.length > 0) {
+                    const message = warnings.join("\\n\\n") + "\\n\\nMożesz kontynuować, jeśli dane są poprawne. Kontynuować?";
+                    if (!window.confirm(message)) {
+                        event.preventDefault();
+                    }
+                }
+            });
+        </script>
     </body>
     </html>
     """

@@ -30,6 +30,7 @@ def build_report(raw_input: str, selected_mask: str, process_result: dict | None
             *_build_next_steps(data),
             "",
             "7. ZAŁOŻENIA I RYZYKA ANALIZY",
+            *_build_data_quality_notes(data),
             *_build_risk_notes(),
             "",
             "8. KONTAKT",
@@ -253,6 +254,33 @@ def _build_risk_notes() -> list[str]:
         "- Rzeczywista efektywność może różnić się od wyniku w zależności od taryfy, autokonsumpcji, ustawień instalacji i sposobu rozliczania.",
         "- Wynik nie stanowi pełnego audytu technicznego ani opinii rzeczoznawczej.",
         "- Pełna diagnostyka wymaga analizy faktur, danych z urządzeń oraz sposobu pracy instalacji w czasie.",
+    ]
+
+
+def _build_data_quality_notes(data: dict) -> list[str]:
+    notes = []
+    consumption = data.get("consumption_kwh")
+    pv_power = data.get("pv_power_kw")
+    pv_production = data.get("pv_monthly_production_kwh")
+
+    if pv_power is not None and pv_power <= 15 and pv_production is not None and pv_production > 2500:
+        notes.append(
+            "- Wykryto dane wymagające dodatkowej weryfikacji: miesięczna produkcja PV wygląda nietypowo dla podanej mocy instalacji. Sprawdź, czy nie wpisano produkcji rocznej zamiast miesięcznej."
+        )
+
+    if consumption is not None and consumption > 5000:
+        notes.append(
+            "- Wykryto dane wymagające dodatkowej weryfikacji: miesięczne zużycie energii wygląda bardzo wysoko dla gospodarstwa domowego."
+        )
+
+    if not notes:
+        return []
+
+    return [
+        "Check danych wejściowych:",
+        "Wykryto dane wymagające dodatkowej weryfikacji. Wynik może być obarczony większą niepewnością ze względu na możliwą niezgodność danych wejściowych.",
+        *notes,
+        "",
     ]
 
 
