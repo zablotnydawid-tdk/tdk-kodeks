@@ -87,16 +87,21 @@ def generate_pdf(report_text: str, output_path: str) -> str:
     sections = _parse_report_sections(report_text)
     report_meta = _build_report_meta(output)
     kpis = _extract_kpis(report_text)
-    status = _extract_report_status(report_text, kpis)
+    data_lines = _section_lines(sections, "DANE DO ANALIZY")[:4]
     warning = _extract_data_warning(report_text)
+    assessment = _build_assessment_status(report_text, warning)
 
-    story.extend(_build_hero(styles, report_meta, status))
-    story.append(Spacer(1, 10))
+    story.extend(_build_hero(styles, report_meta))
+    story.append(Spacer(1, 9))
+    story.extend(_build_data_used_section(data_lines, styles))
+    story.append(Spacer(1, 9))
     story.extend(_build_kpi_cards(kpis, styles))
-    story.append(Spacer(1, 10))
-    story.extend(_build_interpretation_panel(status, warning, styles))
+    story.append(Spacer(1, 9))
+    story.extend(_build_data_status_box(assessment, warning, styles))
+    story.append(Spacer(1, 8))
+    story.extend(_build_reading_note(styles))
     story.append(PageBreak())
-    story.extend(_build_operational_page(sections, styles))
+    story.extend(_build_scope_page(styles))
 
     doc.build(story, onFirstPage=_page_footer, onLaterPages=_page_footer)
 
@@ -108,16 +113,16 @@ def _build_styles() -> dict:
         "brand": ParagraphStyle(
             "brand",
             fontName=BOLD_FONT,
-            fontSize=21,
-            leading=24,
+            fontSize=22,
+            leading=25,
             textColor=COLOR_GOLD,
             alignment=TA_LEFT,
         ),
         "hero_title": ParagraphStyle(
             "hero_title",
             fontName=BOLD_FONT,
-            fontSize=21,
-            leading=25,
+            fontSize=18,
+            leading=22,
             textColor=COLOR_TEXT,
             alignment=TA_LEFT,
         ),
@@ -140,9 +145,9 @@ def _build_styles() -> dict:
         "eyebrow": ParagraphStyle(
             "eyebrow",
             fontName=BOLD_FONT,
-            fontSize=8,
-            leading=10,
-            textColor=COLOR_MUTED,
+            fontSize=12,
+            leading=15,
+            textColor=COLOR_TEXT,
             alignment=TA_LEFT,
         ),
         "meta": ParagraphStyle(
@@ -156,8 +161,8 @@ def _build_styles() -> dict:
         "section_title": ParagraphStyle(
             "section_title",
             fontName=BOLD_FONT,
-            fontSize=11,
-            leading=13,
+            fontSize=11.5,
+            leading=14,
             textColor=COLOR_GOLD,
             alignment=TA_LEFT,
         ),
@@ -180,16 +185,16 @@ def _build_styles() -> dict:
         "body": ParagraphStyle(
             "body",
             fontName=BASE_FONT,
-            fontSize=8.7,
-            leading=12,
+            fontSize=9,
+            leading=12.5,
             textColor=COLOR_TEXT,
             alignment=TA_LEFT,
         ),
         "body_bold": ParagraphStyle(
             "body_bold",
             fontName=BOLD_FONT,
-            fontSize=8.7,
-            leading=12,
+            fontSize=9,
+            leading=12.5,
             textColor=COLOR_GOLD,
             alignment=TA_LEFT,
         ),
@@ -207,6 +212,14 @@ def _build_styles() -> dict:
             fontSize=17,
             leading=20,
             textColor=COLOR_TEXT,
+            alignment=TA_LEFT,
+        ),
+        "small": ParagraphStyle(
+            "small",
+            fontName=BASE_FONT,
+            fontSize=8,
+            leading=10.5,
+            textColor=COLOR_MUTED,
             alignment=TA_LEFT,
         ),
         "status": ParagraphStyle(
@@ -228,19 +241,20 @@ def _build_styles() -> dict:
     }
 
 
-def _build_hero(styles: dict, report_meta: dict, status: dict) -> list:
+def _build_hero(styles: dict, report_meta: dict) -> list:
     hero_rows = [
         [Paragraph("TDK&amp;ProService", styles["brand"])],
-        [Paragraph("WSTĘPNA OCENA SYSTEMU OZE", styles["eyebrow"])],
+        [Paragraph("WSTĘPNA OCENA KIERUNKOWA SYSTEMU OZE", styles["eyebrow"])],
         [
             Paragraph(
                 "Screening techniczno-energetyczny na podstawie danych podanych przez użytkownika.<br/>"
-                "To nie jest pełny audyt techniczny ani opinia rzeczoznawcza. Dokument ma charakter kierunkowy i opiera się na ograniczonych danych wejściowych.",
+                "Ten dokument pokazuje podstawowe przeliczenie kosztów energii i pracy instalacji PV na podstawie danych wpisanych w formularzu. "
+                "Nie jest pełnym audytem technicznym ani opinią rzeczoznawczą.",
                 styles["subtitle"],
             )
         ],
         [
-            _build_meta_table(report_meta, status, styles)
+            _build_meta_table(report_meta, styles)
         ],
     ]
 
@@ -319,33 +333,16 @@ def _build_logo_block(styles: dict):
     return _LogoMark()
 
 
-def _build_meta_table(report_meta: dict, status: dict, styles: dict) -> Table:
-    status_chip = Table(
-        [[Paragraph(status["report_label"], styles["status"])]],
-        colWidths=[58 * mm],
-    )
-    status_chip.setStyle(
-        TableStyle(
-            [
-                ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor(status["color"])),
-                ("BOX", (0, 0), (-1, -1), 0.7, colors.HexColor(status["border"])),
-                ("LEFTPADDING", (0, 0), (-1, -1), 10),
-                ("RIGHTPADDING", (0, 0), (-1, -1), 10),
-                ("TOPPADDING", (0, 0), (-1, -1), 8),
-                ("BOTTOMPADDING", (0, 0), (-1, -1), 8),
-            ]
-        )
-    )
-
+def _build_meta_table(report_meta: dict, styles: dict) -> Table:
     meta = Table(
         [
             [
                 Paragraph(f"RAPORT&nbsp;&nbsp;{report_meta['number']}", styles["meta"]),
                 Paragraph(f"DATA&nbsp;&nbsp;{report_meta['date']}", styles["meta"]),
-                status_chip,
+                Paragraph("TYP&nbsp;&nbsp;SCREENING", styles["meta"]),
             ]
         ],
-        colWidths=[68 * mm, 34 * mm, 58 * mm],
+        colWidths=[78 * mm, 40 * mm, 42 * mm],
     )
     meta.setStyle(
         TableStyle(
@@ -363,9 +360,13 @@ def _build_meta_table(report_meta: dict, status: dict, styles: dict) -> Table:
     return meta
 
 
+def _build_data_used_section(data_lines: list[str], styles: dict) -> list:
+    return [_full_width_section("Dane użyte do oceny", data_lines, styles)]
+
+
 def _build_kpi_cards(kpis: dict, styles: dict) -> list:
     title = Table(
-        [[Paragraph("PODSUMOWANIE WYNIKÓW", styles["section_title_light"])]],
+        [[Paragraph("Podstawowe przeliczenie", styles["section_title_light"])]],
         colWidths=[174 * mm],
     )
     title.setStyle(
@@ -383,7 +384,7 @@ def _build_kpi_cards(kpis: dict, styles: dict) -> list:
 
     cards = [
         _kpi_cell("BEZ PV", kpis["cost_without_pv"], "#0d1016", "#d4a84f", styles),
-        _kpi_cell("PO PV", kpis["cost_after_pv"], "#0d1016", "#1f8f4d", styles),
+        _kpi_cell("PO UWZGLĘDNIENIU PV", kpis["cost_after_pv"], "#0d1016", "#1f8f4d", styles),
         _kpi_cell("RÓŻNICA", kpis["savings"], "#0d1016", "#8b3dff", styles),
     ]
 
@@ -441,29 +442,21 @@ def _progress_bar(accent: str) -> Table:
     return bar
 
 
-def _build_interpretation_panel(status: dict, warning: str | None, styles: dict) -> list:
-    warning_rows = []
+def _build_data_status_box(assessment: dict, warning: str | None, styles: dict) -> list:
     if warning:
-        warning_rows = [
-            [Paragraph("Wykryto dane wymagające dodatkowej weryfikacji.", styles["section_title_light"])],
-            [Paragraph(warning, styles["body_bold"])],
-        ]
+        detail = warning
+    else:
+        detail = "Dane wejściowe nie wykazują oczywistej niespójności na etapie formularza."
 
     rows = [
+        [Paragraph(f"Status oceny: {assessment['label']}", styles["section_title_light"])],
+        [Paragraph(detail, styles["body_bold"] if warning else styles["body"])],
         [
             Paragraph(
-                f"Poziom efektywności: {status['efficiency_label']}",
-                styles["section_title_light"],
-            )
-        ],
-        [Paragraph(status["description"], styles["body"])],
-        [
-            Paragraph(
-                "Wynik należy traktować jako sygnał kierunkowy. Może wskazać potencjał lub ryzyko, ale nie przesądza o rzeczywistej efektywności systemu.",
+                "Wynik matematyczny został policzony, ale jego wiarygodność zależy od poprawności danych wejściowych.",
                 styles["body"],
             )
         ],
-        *warning_rows,
     ]
 
     table = Table(rows, colWidths=[174 * mm])
@@ -484,40 +477,61 @@ def _build_interpretation_panel(status: dict, warning: str | None, styles: dict)
     return [table]
 
 
-def _build_operational_page(sections: list[tuple[str, list[str]]], styles: dict) -> list:
-    data_lines = _section_lines(sections, "DANE DO ANALIZY")[:4]
-    causes = _section_lines(sections, "CO MOŻE BYĆ PROBLEMEM")[:5]
-    next_steps = _section_lines(sections, "NASTĘPNY KROK")[:4]
+def _build_reading_note(styles: dict) -> list:
+    return [
+        _full_width_section(
+            "Jak czytać wynik",
+            [
+                "Wynik należy traktować jako orientacyjne porównanie kosztów, nie jako potwierdzenie rzeczywistej sprawności instalacji."
+            ],
+            styles,
+        )
+    ]
 
+
+def _build_scope_page(styles: dict) -> list:
     excluded = [
-        "faktury i rozliczenia szczegółowe",
-        "dane z falownika",
-        "historia pracy instalacji",
-        "taryfy dynamiczne",
-        "pomiary i oględziny instalacji",
+        "faktur i rozliczeń szczegółowych",
+        "profilu autokonsumpcji godzinowej",
+        "eksportu i importu energii",
+        "danych z falownika",
+        "historii pracy instalacji",
+        "pracy pompy ciepła",
+        "magazynu energii",
+        "taryf dynamicznych",
+        "pomiarów i oględzin",
     ]
 
-    influences = causes or [
-        "autokonsumpcja energii z PV",
+    to_check = [
+        "autokonsumpcja",
         "taryfa i sposób rozliczania",
-        "konfiguracja falownika lub urządzeń",
-        "sterowanie odbiornikami",
-        "magazyn energii",
+        "konfiguracja falownika",
+        "sterowanie pompą ciepła lub magazynem",
+        "rozbieżność między produkcją deklarowaną a realnym zużyciem",
+        "wysokie koszty mimo instalacji PV",
     ]
-
-    next_text = (
-        "Jeżeli koszty energii nadal są wysokie mimo instalacji PV, kolejnym krokiem powinna być "
-        "pełna diagnostyka oparta na danych rzeczywistych."
-    )
 
     sections_flow = [
-        _full_width_section("Dane wejściowe", data_lines, styles),
+        _full_width_section("Czego ta ocena nie obejmuje", excluded, styles),
         Spacer(1, 7),
-        _full_width_section("Co może wpływać na wynik", influences, styles),
+        _full_width_section("Co może wymagać sprawdzenia", to_check, styles),
         Spacer(1, 7),
-        _full_width_section("Czego analiza jeszcze nie obejmuje", excluded, styles),
+        _full_width_section(
+            "Następny krok",
+            [
+                "Jeżeli wynik budzi wątpliwości albo koszty energii nadal są wysokie mimo instalacji PV, kolejnym krokiem jest pełna diagnostyka TDK&ProService oparta na fakturach, danych z urządzeń i historii pracy systemu."
+            ],
+            styles,
+        ),
         Spacer(1, 7),
-        _full_width_section("Następny krok", [next_text, *next_steps[:2]], styles),
+        _full_width_section(
+            "Odpowiedzialność i zakres",
+            [
+                "TDK&ProService nie wydaje końcowego wniosku technicznego na podstawie kilku danych z formularza.",
+                "Ten dokument porządkuje pierwszy etap rozmowy i wskazuje, co warto sprawdzić dalej.",
+            ],
+            styles,
+        ),
         Spacer(1, 7),
     ]
 
@@ -555,7 +569,7 @@ def _build_operational_page(sections: list[tuple[str, list[str]]], styles: dict)
 def _full_width_section(title: str, lines: list[str], styles: dict) -> Table:
     clean_lines = [line for line in lines if line.strip()]
     rows = [[Paragraph(_escape(title), styles["section_title"])]]
-    rows.extend([[Paragraph(_format_report_line(line), styles["body"])] for line in clean_lines[:6]])
+    rows.extend([[Paragraph(_format_bullet_line(line), styles["body"])] for line in clean_lines[:9]])
 
     card = Table(rows, colWidths=[174 * mm])
     card.setStyle(
@@ -727,7 +741,19 @@ def _extract_data_warning(report_text: str) -> str | None:
     lower = report_text.lower()
     if "wykryto dane wymagające dodatkowej weryfikacji" not in lower:
         return None
-    return "Wykryto dane wymagające dodatkowej weryfikacji. Wynik może być obarczony większą niepewnością ze względu na możliwą niezgodność danych wejściowych."
+    if "produkcji rocznej zamiast miesięcznej" in lower or "produkcja pv wygląda nietypowo" in lower:
+        return (
+            "Dane wymagają weryfikacji. Podana produkcja PV wygląda nietypowo dla wskazanej mocy instalacji. "
+            "Sprawdź, czy nie wpisano produkcji rocznej zamiast miesięcznej."
+        )
+    if "zużycie energii wygląda bardzo wysoko" in lower:
+        return (
+            "Dane wymagają weryfikacji. Podane miesięczne zużycie energii wygląda bardzo wysoko dla gospodarstwa domowego. "
+            "Sprawdź, czy wartość nie pochodzi z innego okresu rozliczeniowego."
+        )
+    return (
+        "Dane wymagają weryfikacji. Wynik może być obarczony większą niepewnością ze względu na możliwą niezgodność danych wejściowych."
+    )
 
 
 def _is_section_title(line: str) -> bool:
@@ -747,6 +773,13 @@ def _format_report_line(text: str) -> str:
     if clean.startswith("- "):
         return f"• {clean[2:]}"
     return clean
+
+
+def _format_bullet_line(text: str) -> str:
+    clean = _format_report_line(text)
+    if clean.startswith("• "):
+        return clean
+    return f"• {clean}"
 
 
 def _build_report_meta(output: Path) -> dict:
@@ -774,48 +807,24 @@ def _extract_money(text: str, pattern: str) -> str:
     return value or "brak danych"
 
 
-def _extract_report_status(report_text: str, kpis: dict) -> dict:
+def _build_assessment_status(report_text: str, warning: str | None) -> dict:
     lower = report_text.lower()
-    if "niska efektywność" in lower:
+    if warning:
         return {
-            "report_label": "WSTĘPNA ANALIZA",
-            "efficiency_label": "niska efektywność",
-            "color": "#b42318",
-            "border": "#7a271a",
-            "description": "Wstępny wynik wskazuje na istotne ryzyko strat lub niedopasowania konfiguracji.",
-        }
-    if "umiarkowana efektywność" in lower:
-        return {
-            "report_label": "WSTĘPNA ANALIZA",
-            "efficiency_label": "umiarkowana efektywność",
+            "label": "dane wymagają weryfikacji",
             "color": "#d4a84f",
             "border": "#8a641b",
-            "description": "System działa, ale może mieć rezerwę w autokonsumpcji, taryfie lub sterowaniu.",
         }
-    if "wysoka efektywność" in lower:
+    if "oszczędność jest niewielka" in lower or "wymaga dokładniejszej weryfikacji" in lower:
         return {
-            "report_label": "WSTĘPNA ANALIZA",
-            "efficiency_label": "wysoka efektywność",
-            "color": "#1f8f4d",
-            "border": "#176b39",
-            "description": "Wstępny wynik jest korzystny, ale nie zastępuje weryfikacji na danych rzeczywistych.",
+            "label": "możliwe obszary do sprawdzenia",
+            "color": "#d4a84f",
+            "border": "#8a641b",
         }
-
-    if all(value != "brak danych" for value in kpis.values()):
-        return {
-            "report_label": "WSTĘPNA ANALIZA",
-            "efficiency_label": "dane kompletne",
-            "color": "#8b3dff",
-            "border": "#3b1b73",
-            "description": "Ocena zawiera komplet głównych wskaźników kosztowych dla danych wejściowych.",
-        }
-
     return {
-        "report_label": "WSTĘPNA ANALIZA",
-        "efficiency_label": "dane wstępne",
-        "color": "#d4a84f",
-        "border": "#8a641b",
-        "description": "Część danych wymaga doprecyzowania przed pełną diagnostyką techniczną.",
+        "label": "dane wejściowe wyglądają spójnie",
+        "color": "#1f8f4d",
+        "border": "#176b39",
     }
 
 
