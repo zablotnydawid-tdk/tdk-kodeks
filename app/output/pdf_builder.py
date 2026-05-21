@@ -73,10 +73,10 @@ def generate_pdf(report_text: str, output_path: str) -> str:
     doc = SimpleDocTemplate(
         str(output),
         pagesize=A4,
-        rightMargin=16 * mm,
-        leftMargin=16 * mm,
-        topMargin=16 * mm,
-        bottomMargin=16 * mm,
+        rightMargin=14 * mm,
+        leftMargin=14 * mm,
+        topMargin=14 * mm,
+        bottomMargin=14 * mm,
         title="TDK&ProService - Wstępna ocena systemu OZE",
         author="TDK&ProService",
     )
@@ -88,23 +88,15 @@ def generate_pdf(report_text: str, output_path: str) -> str:
     report_meta = _build_report_meta(output)
     kpis = _extract_kpis(report_text)
     status = _extract_report_status(report_text, kpis)
+    warning = _extract_data_warning(report_text)
 
     story.extend(_build_hero(styles, report_meta, status))
-    story.append(Spacer(1, 12))
-    story.extend(_build_scope_panel(styles))
-    story.append(Spacer(1, 10))
-    story.extend(_build_kpi_cards(kpis, styles))
-    story.append(Spacer(1, 10))
-    story.extend(_build_status_panel(status, styles))
-    story.append(PageBreak())
-
-    for title, lines in sections:
-        story.extend(_build_section(title, lines, styles))
-        story.append(Spacer(1, 11))
-
-    story.extend(_build_diagnostics_panel(styles))
     story.append(Spacer(1, 8))
-    story.extend(_build_footer_cta(styles))
+    story.extend(_build_kpi_cards(kpis, status, styles))
+    story.append(Spacer(1, 8))
+    story.extend(_build_interpretation_panel(status, warning, styles))
+    story.append(PageBreak())
+    story.extend(_build_operational_page(sections, styles))
 
     doc.build(story, onFirstPage=_page_footer, onLaterPages=_page_footer)
 
@@ -116,16 +108,16 @@ def _build_styles() -> dict:
         "brand": ParagraphStyle(
             "brand",
             fontName=BOLD_FONT,
-            fontSize=24,
-            leading=29,
+            fontSize=21,
+            leading=24,
             textColor=COLOR_GOLD,
             alignment=TA_LEFT,
         ),
         "hero_title": ParagraphStyle(
             "hero_title",
             fontName=BOLD_FONT,
-            fontSize=25,
-            leading=30,
+            fontSize=21,
+            leading=25,
             textColor=COLOR_TEXT,
             alignment=TA_LEFT,
         ),
@@ -140,8 +132,8 @@ def _build_styles() -> dict:
         "subtitle": ParagraphStyle(
             "subtitle",
             fontName=BASE_FONT,
-            fontSize=10.5,
-            leading=15,
+            fontSize=9.5,
+            leading=12.5,
             textColor=COLOR_MUTED,
             alignment=TA_LEFT,
         ),
@@ -164,16 +156,16 @@ def _build_styles() -> dict:
         "section_title": ParagraphStyle(
             "section_title",
             fontName=BOLD_FONT,
-            fontSize=13,
-            leading=16,
+            fontSize=11,
+            leading=13,
             textColor=COLOR_GOLD,
             alignment=TA_LEFT,
         ),
         "section_title_light": ParagraphStyle(
             "section_title_light",
             fontName=BOLD_FONT,
-            fontSize=13,
-            leading=16,
+            fontSize=11,
+            leading=13,
             textColor=COLOR_GOLD,
             alignment=TA_LEFT,
         ),
@@ -188,16 +180,16 @@ def _build_styles() -> dict:
         "body": ParagraphStyle(
             "body",
             fontName=BASE_FONT,
-            fontSize=9.5,
-            leading=14.5,
+            fontSize=8.7,
+            leading=12,
             textColor=COLOR_TEXT,
             alignment=TA_LEFT,
         ),
         "body_bold": ParagraphStyle(
             "body_bold",
             fontName=BOLD_FONT,
-            fontSize=9.5,
-            leading=14,
+            fontSize=8.7,
+            leading=12,
             textColor=COLOR_GOLD,
             alignment=TA_LEFT,
         ),
@@ -212,8 +204,8 @@ def _build_styles() -> dict:
         "kpi_value": ParagraphStyle(
             "kpi_value",
             fontName=BOLD_FONT,
-            fontSize=21,
-            leading=25,
+            fontSize=15,
+            leading=18,
             textColor=COLOR_TEXT,
             alignment=TA_LEFT,
         ),
@@ -228,8 +220,8 @@ def _build_styles() -> dict:
         "cta": ParagraphStyle(
             "cta",
             fontName=BOLD_FONT,
-            fontSize=11,
-            leading=15,
+            fontSize=9.5,
+            leading=12.5,
             textColor=COLOR_TEXT,
             alignment=TA_LEFT,
         ),
@@ -239,27 +231,12 @@ def _build_styles() -> dict:
 def _build_hero(styles: dict, report_meta: dict, status: dict) -> list:
     hero_rows = [
         [Paragraph("TDK&amp;ProService", styles["brand"])],
-        [Paragraph("Screening techniczno-energetyczny", styles["brand_subtitle"])],
-        [Spacer(1, 16)],
         [Paragraph("WSTĘPNA OCENA SYSTEMU OZE", styles["eyebrow"])],
         [
             Paragraph(
-                "Wstępna analiza kosztów i pracy instalacji",
-                styles["hero_title"],
-            )
-        ],
-        [
-            Paragraph(
                 "Screening techniczno-energetyczny na podstawie danych podanych przez użytkownika.<br/>"
-                "To pierwszy etap diagnostyki TDK&amp;ProService.",
+                "To nie jest pełny audyt techniczny ani opinia rzeczoznawcza. Dokument ma charakter kierunkowy i opiera się na ograniczonych danych wejściowych.",
                 styles["subtitle"],
-            )
-        ],
-        [
-            Paragraph(
-                "Ten dokument nie jest pełnym audytem technicznym ani opinią rzeczoznawczą. "
-                "To wstępna ocena kierunkowa przygotowana na podstawie ograniczonych danych wejściowych.",
-                styles["body_bold"],
             )
         ],
         [
@@ -275,12 +252,12 @@ def _build_hero(styles: dict, report_meta: dict, status: dict) -> list:
                 ("BOX", (0, 0), (-1, -1), 0.55, COLOR_BORDER),
                 ("LINEABOVE", (0, 0), (-1, 0), 1.0, COLOR_GOLD_DARK),
                 ("VALIGN", (0, 0), (-1, -1), "TOP"),
-                ("LEFTPADDING", (0, 0), (-1, -1), 19),
-                ("RIGHTPADDING", (0, 0), (-1, -1), 19),
-                ("TOPPADDING", (0, 0), (-1, -1), 7),
-                ("BOTTOMPADDING", (0, 0), (-1, -1), 7),
-                ("TOPPADDING", (0, 0), (0, 0), 24),
-                ("BOTTOMPADDING", (0, 7), (0, 7), 24),
+                ("LEFTPADDING", (0, 0), (-1, -1), 14),
+                ("RIGHTPADDING", (0, 0), (-1, -1), 14),
+                ("TOPPADDING", (0, 0), (-1, -1), 5),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 5),
+                ("TOPPADDING", (0, 0), (0, 0), 14),
+                ("BOTTOMPADDING", (0, 3), (0, 3), 13),
             ]
         )
     )
@@ -386,7 +363,7 @@ def _build_meta_table(report_meta: dict, status: dict, styles: dict) -> Table:
     return meta
 
 
-def _build_kpi_cards(kpis: dict, styles: dict) -> list:
+def _build_kpi_cards(kpis: dict, status: dict, styles: dict) -> list:
     title = Table(
         [[Paragraph("PODSUMOWANIE WYNIKÓW", styles["section_title_light"])]],
         colWidths=[174 * mm],
@@ -408,9 +385,10 @@ def _build_kpi_cards(kpis: dict, styles: dict) -> list:
         _kpi_cell("BEZ PV", kpis["cost_without_pv"], "#0d1016", "#d4a84f", styles),
         _kpi_cell("PO PV", kpis["cost_after_pv"], "#0d1016", "#1f8f4d", styles),
         _kpi_cell("RÓŻNICA", kpis["savings"], "#0d1016", "#8b3dff", styles),
+        _kpi_cell("EFEKTYWNOŚĆ", status["efficiency_label"], "#0d1016", status["color"], styles),
     ]
 
-    table = Table([cards], colWidths=[56.8 * mm, 56.8 * mm, 56.8 * mm], hAlign="LEFT")
+    table = Table([cards], colWidths=[42.3 * mm, 42.3 * mm, 42.3 * mm, 42.3 * mm], hAlign="LEFT")
     table.setStyle(
         TableStyle(
             [
@@ -429,10 +407,10 @@ def _kpi_cell(label: str, value: str, background: str, accent: str, styles: dict
     cell = Table(
         [
             [Paragraph(label, styles["kpi_label"])],
-            [Spacer(1, 4)],
+            [Spacer(1, 2)],
             [Paragraph(value, styles["kpi_value"])],
         ],
-        colWidths=[50.8 * mm],
+        colWidths=[37.3 * mm],
     )
     cell.setStyle(
         TableStyle(
@@ -440,10 +418,10 @@ def _kpi_cell(label: str, value: str, background: str, accent: str, styles: dict
                 ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor(background)),
                 ("BOX", (0, 0), (-1, -1), 0.55, COLOR_BORDER),
                 ("LINEABOVE", (0, 0), (-1, 0), 1.0, colors.HexColor(accent)),
-                ("LEFTPADDING", (0, 0), (-1, -1), 13),
-                ("RIGHTPADDING", (0, 0), (-1, -1), 13),
-                ("TOPPADDING", (0, 0), (-1, -1), 12),
-                ("BOTTOMPADDING", (0, 0), (-1, -1), 12),
+                ("LEFTPADDING", (0, 0), (-1, -1), 9),
+                ("RIGHTPADDING", (0, 0), (-1, -1), 9),
+                ("TOPPADDING", (0, 0), (-1, -1), 9),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 9),
             ]
         )
     )
@@ -464,7 +442,7 @@ def _progress_bar(accent: str) -> Table:
     return bar
 
 
-def _build_status_panel(status: dict, styles: dict) -> list:
+def _build_interpretation_panel(status: dict, warning: str | None, styles: dict) -> list:
     status_chip = Table([[Paragraph(status["efficiency_label"], styles["status"])]], colWidths=[46 * mm])
     status_chip.setStyle(
         TableStyle(
@@ -477,12 +455,13 @@ def _build_status_panel(status: dict, styles: dict) -> list:
         )
     )
 
+    warning_text = warning or "Brak nietypowych proporcji wykrytych w prostym checku danych wejściowych."
+    warning_title = "Check danych" if warning else "Check danych"
+    warning_style = styles["body_bold"] if warning else styles["body"]
+
     table = Table(
         [
-            [
-                Paragraph("Poziom efektywności", styles["section_title_light"]),
-                status_chip,
-            ],
+            [Paragraph("Krótka interpretacja", styles["section_title_light"]), status_chip],
             [
                 Paragraph(status["description"], styles["body"]),
                 Paragraph(
@@ -490,8 +469,12 @@ def _build_status_panel(status: dict, styles: dict) -> list:
                     styles["body"],
                 ),
             ],
+            [
+                Paragraph(warning_title, styles["section_title_light"]),
+                Paragraph(warning_text, warning_style),
+            ],
         ],
-        colWidths=[118 * mm, 56 * mm],
+        colWidths=[84 * mm, 90 * mm],
     )
     table.setStyle(
         TableStyle(
@@ -502,12 +485,116 @@ def _build_status_panel(status: dict, styles: dict) -> list:
                 ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
                 ("LEFTPADDING", (0, 0), (-1, -1), 12),
                 ("RIGHTPADDING", (0, 0), (-1, -1), 12),
-                ("TOPPADDING", (0, 0), (-1, -1), 9),
-                ("BOTTOMPADDING", (0, 0), (-1, -1), 9),
+                ("TOPPADDING", (0, 0), (-1, -1), 8),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 8),
             ]
         )
     )
     return [table]
+
+
+def _build_operational_page(sections: list[tuple[str, list[str]]], styles: dict) -> list:
+    data_lines = _section_lines(sections, "DANE DO ANALIZY")[:4]
+    causes = _section_lines(sections, "CO MOŻE BYĆ PROBLEMEM")[:5]
+    next_steps = _section_lines(sections, "NASTĘPNY KROK")[:4]
+
+    excluded = [
+        "faktury i rozliczenia szczegółowe",
+        "dane z falownika",
+        "historia pracy instalacji",
+        "taryfy dynamiczne",
+        "pomiary i oględziny instalacji",
+    ]
+
+    influences = causes or [
+        "autokonsumpcja energii z PV",
+        "taryfa i sposób rozliczania",
+        "konfiguracja falownika lub urządzeń",
+        "sterowanie odbiornikami",
+        "magazyn energii",
+    ]
+
+    next_text = (
+        "Jeżeli koszty energii nadal są wysokie mimo instalacji PV, kolejnym krokiem powinna być "
+        "pełna diagnostyka oparta na danych rzeczywistych."
+    )
+
+    cards = [
+        _compact_card("Dane wejściowe", data_lines, styles),
+        _compact_card("Co może wpływać na wynik", influences, styles),
+        _compact_card("Czego analiza jeszcze nie obejmuje", excluded, styles),
+        _compact_card("Następny krok", [next_text, *next_steps[:2]], styles),
+    ]
+
+    grid = Table(
+        [[cards[0], cards[1]], [cards[2], cards[3]]],
+        colWidths=[85 * mm, 85 * mm],
+        rowHeights=None,
+    )
+    grid.setStyle(
+        TableStyle(
+            [
+                ("VALIGN", (0, 0), (-1, -1), "TOP"),
+                ("LEFTPADDING", (0, 0), (-1, -1), 0),
+                ("RIGHTPADDING", (0, 0), (-1, -1), 0),
+                ("TOPPADDING", (0, 0), (-1, -1), 0),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 8),
+            ]
+        )
+    )
+
+    contact = Table(
+        [
+            [Paragraph("Kontakt", styles["section_title_light"])],
+            [
+                Paragraph(
+                    "TDK&amp;ProService • kontakt@tdkproservice.pl<br/>"
+                    "Praktyka terenowa Dawida Zabłotnego w obszarze PV, pomp ciepła, magazynów energii i kosztów utraconej energii.",
+                    styles["body"],
+                )
+            ],
+        ],
+        colWidths=[174 * mm],
+    )
+    contact.setStyle(
+        TableStyle(
+            [
+                ("BACKGROUND", (0, 0), (-1, 0), COLOR_BG),
+                ("BACKGROUND", (0, 1), (-1, -1), COLOR_PANEL_2),
+                ("BOX", (0, 0), (-1, -1), 0.7, COLOR_BORDER),
+                ("LINEBEFORE", (0, 0), (0, -1), 3, COLOR_PURPLE),
+                ("LEFTPADDING", (0, 0), (-1, -1), 10),
+                ("RIGHTPADDING", (0, 0), (-1, -1), 10),
+                ("TOPPADDING", (0, 0), (-1, -1), 8),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 8),
+            ]
+        )
+    )
+
+    return [grid, Spacer(1, 5), contact]
+
+
+def _compact_card(title: str, lines: list[str], styles: dict) -> Table:
+    clean_lines = [line for line in lines if line.strip()]
+    rows = [[Paragraph(_escape(title), styles["section_title"])]]
+    rows.extend([[Paragraph(_format_report_line(line), styles["body"]) ] for line in clean_lines[:6]])
+
+    card = Table(rows, colWidths=[82 * mm])
+    card.setStyle(
+        TableStyle(
+            [
+                ("BACKGROUND", (0, 0), (-1, 0), COLOR_BG),
+                ("BACKGROUND", (0, 1), (-1, -1), COLOR_PANEL),
+                ("BOX", (0, 0), (-1, -1), 0.7, COLOR_BORDER),
+                ("LINEBEFORE", (0, 0), (0, -1), 3, COLOR_GOLD_DARK),
+                ("LEFTPADDING", (0, 0), (-1, -1), 9),
+                ("RIGHTPADDING", (0, 0), (-1, -1), 9),
+                ("TOPPADDING", (0, 0), (-1, -1), 7),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 7),
+            ]
+        )
+    )
+    return card
 
 
 def _build_section(title: str, lines: list[str], styles: dict) -> list:
@@ -648,6 +735,21 @@ def _parse_report_sections(report_text: str) -> list[tuple[str, list[str]]]:
         sections.append((current_title, current_lines))
 
     return sections
+
+
+def _section_lines(sections: list[tuple[str, list[str]]], title_part: str) -> list[str]:
+    title_part = title_part.lower()
+    for title, lines in sections:
+        if title_part in title.lower():
+            return lines
+    return []
+
+
+def _extract_data_warning(report_text: str) -> str | None:
+    lower = report_text.lower()
+    if "wykryto dane wymagające dodatkowej weryfikacji" not in lower:
+        return None
+    return "Wykryto dane wymagające dodatkowej weryfikacji. Wynik może być obarczony większą niepewnością ze względu na możliwą niezgodność danych wejściowych."
 
 
 def _is_section_title(line: str) -> bool:
