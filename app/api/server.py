@@ -599,7 +599,7 @@ def home() -> str:
                         <pre>- Zużycie miesięczne: 323 kWh
 - Cena energii: 1.23 zł/kWh
 - Moc instalacji PV: 8 kWp
-- Miesięczna produkcja PV: 6543 kWh</pre>
+- Miesięczna produkcja PV: 653 kWh</pre>
                     </div>
 
                 </div>
