@@ -2,11 +2,12 @@ import os
 import smtplib
 import ssl
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from email.message import EmailMessage
 from pathlib import Path
 from typing import Optional
 from urllib.parse import unquote
+from zoneinfo import ZoneInfo
 
 from dotenv import load_dotenv
 from fastapi import FastAPI, Form, Request
@@ -32,6 +33,7 @@ MAIL_LOG_PATH = Path("data") / "logs" / "mail_failures.log"
 MAIL_LOG_PATH.parent.mkdir(parents=True, exist_ok=True)
 
 order_store = FileSystemOrderStore()
+PL_TZ = ZoneInfo("Europe/Warsaw")
 
 LEAD_NOTIFY_EMAIL = os.getenv(
     "LEAD_NOTIFY_EMAIL",
@@ -80,6 +82,27 @@ PAYMENT_CONTACT_EMAIL = os.getenv(
 )
 app = FastAPI(title="KODEKS API")
 app.mount("/reports", StaticFiles(directory=str(REPORTS_DIR)), name="reports")
+
+
+def format_pl_time(value: str | None) -> str:
+    raw = (value or "").strip()
+    if not raw:
+        return ""
+    normalized = raw.replace("Z", "+00:00")
+    try:
+        parsed = datetime.fromisoformat(normalized[:25])
+    except ValueError:
+        try:
+            parsed = datetime.fromisoformat(normalized[:19])
+        except ValueError:
+            return raw
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=timezone.utc)
+    local_time = parsed.astimezone(PL_TZ)
+    return (
+        f'{local_time.strftime("%Y-%m-%d %H:%M")} '
+        f'<span style="color:#7f8b99;font-size:12px;">czas lokalny PL</span>'
+    )
 
 
 class AnalyzeRequest(BaseModel):
@@ -1323,7 +1346,7 @@ def admin_orders(admin_key: str = "") -> str:
             status = order.get("status", "")
             status_html = status_badge(status)
             email = order.get("email", "")
-            created_at = order.get("created_at", "")
+            created_at = format_pl_time(order.get("created_at", ""))
             amount = order.get("amount", PAYMENT_AMOUNT)
             pdf_url = order.get("pdf_url")
             client_mail_status = order.get("client_mail_status", "MAIL_PENDING")
