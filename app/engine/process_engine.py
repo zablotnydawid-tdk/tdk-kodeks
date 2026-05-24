@@ -3,6 +3,9 @@ from app.engine.steps import (
     build_hypothesis,
     build_observation,
     build_verification,
+    calculate_energy_case,
+    extract_energy_data,
+    is_energy_case,
 )
 
 
@@ -17,6 +20,9 @@ def run_process(normalized_text: str, selected_mask: str) -> dict:
         hypothesis,
         verification,
     )
+    calculations = None
+    if selected_mask == "CaseReporter" and is_energy_case(normalized_text):
+        calculations = calculate_energy_case(extract_energy_data(normalized_text))
 
     return {
         "mask": selected_mask,
@@ -24,4 +30,5 @@ def run_process(normalized_text: str, selected_mask: str) -> dict:
         "hypothesis": hypothesis,
         "verification": verification,
         "conclusion": conclusion,
+        "calculations": calculations,
     }
