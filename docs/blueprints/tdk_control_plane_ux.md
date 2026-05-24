@@ -161,6 +161,7 @@ Minimalne dane:
 - `git status --short`,
 - ostatnie commity,
 - status portow lokalnego domu,
+- status contract zgodny z `schemas/control_plane_status.schema.json`,
 - `data/final_axis/runtime_log.jsonl`,
 - `data/final_axis/operational_report.md`,
 - `data/drift_energy_monitor/runtime_log.jsonl`,
@@ -174,6 +175,8 @@ Minimalne ograniczenia:
 - brak automatycznego full disk scan,
 - brak automatycznego recovery bez operatora,
 - brak wysylki danych poza lokalny system bez potwierdzenia.
+
+Statusowa warstwa prawdy dla dashboardu powinna byc zgodna z kontraktem `schemas/control_plane_status.schema.json`. Panel czyta ten dokument jako read-only status plane dla `axis_runtime`, `demon_core`, `anchor_git`, `master_system_sync`, `local_operator_stack`, `proservice_workflow`, `retina_dashboard`, `github_sync` i `windows_environment`. UI moze agregowac i prezentowac te pola, ale nie powinien rozszerzac kontraktu ad hoc bez aktualizacji schematu.
 
 ## 7. Co jest aktywne teraz
 

@@ -1,0 +1,238 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://tdk.local/schemas/control_plane_status.schema.json",
+  "title": "TDK Control Plane Status",
+  "description": "Status contract for the future TDK Control Plane UX. This schema is read-only truth input for dashboard views and does not define executable actions.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "generated_at",
+    "components"
+  ],
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "const": "1.0.0"
+    },
+    "generated_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "UTC timestamp when the status document was generated."
+    },
+    "operator_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "host": {
+          "type": "string"
+        },
+        "workspace": {
+          "type": "string"
+        },
+        "runtime_mode": {
+          "type": "string",
+          "examples": [
+            "local",
+            "field",
+            "forensic",
+            "development"
+          ]
+        }
+      }
+    },
+    "components": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "axis_runtime",
+        "demon_core",
+        "anchor_git",
+        "master_system_sync",
+        "local_operator_stack",
+        "proservice_workflow",
+        "retina_dashboard",
+        "github_sync",
+        "windows_environment"
+      ],
+      "properties": {
+        "axis_runtime": {
+          "$ref": "#/$defs/component_status"
+        },
+        "demon_core": {
+          "$ref": "#/$defs/component_status"
+        },
+        "anchor_git": {
+          "$ref": "#/$defs/component_status"
+        },
+        "master_system_sync": {
+          "$ref": "#/$defs/component_status"
+        },
+        "local_operator_stack": {
+          "$ref": "#/$defs/component_status"
+        },
+        "proservice_workflow": {
+          "$ref": "#/$defs/component_status"
+        },
+        "retina_dashboard": {
+          "$ref": "#/$defs/component_status"
+        },
+        "github_sync": {
+          "$ref": "#/$defs/component_status"
+        },
+        "windows_environment": {
+          "$ref": "#/$defs/component_status"
+        }
+      }
+    }
+  },
+  "$defs": {
+    "component_status": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "status",
+        "last_checked",
+        "source",
+        "notes",
+        "drift_level",
+        "next_action"
+      ],
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "active",
+            "warning",
+            "error",
+            "unknown"
+          ]
+        },
+        "last_checked": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "source": {
+          "type": "string",
+          "minLength": 1,
+          "description": "File, script, log, API endpoint, or command that produced this status."
+        },
+        "notes": {
+          "type": "string"
+        },
+        "drift_level": {
+          "type": "string",
+          "enum": [
+            "none",
+            "low",
+            "medium",
+            "high"
+          ]
+        },
+        "next_action": {
+          "type": "string",
+          "description": "Operator-facing next step. Use 'none' when no action is needed."
+        }
+      }
+    }
+  },
+  "examples": [
+    {
+      "schema_version": "1.0.0",
+      "generated_at": "2026-05-24T18:30:00Z",
+      "operator_context": {
+        "host": "TDK-WINDOWS",
+        "workspace": "C:\\KODEKS",
+        "runtime_mode": "local"
+      },
+      "components": {
+        "axis_runtime": {
+          "name": "Final Axis Runtime",
+          "status": "active",
+          "last_checked": "2026-05-24T18:30:00Z",
+          "source": "data/final_axis/runtime_log.jsonl",
+          "notes": "Runtime trace available.",
+          "drift_level": "none",
+          "next_action": "none"
+        },
+        "demon_core": {
+          "name": "DRIFT_ENERGY_MONITOR / DEMON_CORE",
+          "status": "active",
+          "last_checked": "2026-05-24T18:30:00Z",
+          "source": "data/drift_energy_monitor/runtime_log.jsonl",
+          "notes": "Latest report generated.",
+          "drift_level": "low",
+          "next_action": "review latest operational report"
+        },
+        "anchor_git": {
+          "name": "Anchor Git / AnchorGrid",
+          "status": "active",
+          "last_checked": "2026-05-24T18:30:00Z",
+          "source": "app/anchorgrid",
+          "notes": "AnchorGrid module and tests present.",
+          "drift_level": "none",
+          "next_action": "none"
+        },
+        "master_system_sync": {
+          "name": "TDK Master System Sync",
+          "status": "active",
+          "last_checked": "2026-05-24T18:30:00Z",
+          "source": "scripts/master_system_sync.ps1",
+          "notes": "Script available; full disk scan is manual only.",
+          "drift_level": "none",
+          "next_action": "run default workspace scan when inventory is needed"
+        },
+        "local_operator_stack": {
+          "name": "Local Operator Stack",
+          "status": "active",
+          "last_checked": "2026-05-24T18:30:00Z",
+          "source": "docs/runbooks/local-operator-flow.md",
+          "notes": "Start, stop, monitor, backup, recovery and audit scripts exist.",
+          "drift_level": "low",
+          "next_action": "run local operator audit before deploy"
+        },
+        "proservice_workflow": {
+          "name": "ProService / TDK Workflow",
+          "status": "active",
+          "last_checked": "2026-05-24T18:30:00Z",
+          "source": "app/engine/process_engine.py",
+          "notes": "CaseReporter and energy case calculations are available.",
+          "drift_level": "none",
+          "next_action": "none"
+        },
+        "retina_dashboard": {
+          "name": "Retina Preview Layer",
+          "status": "unknown",
+          "last_checked": "2026-05-24T18:30:00Z",
+          "source": "docs/blueprints/tdk_control_plane_ux.md",
+          "notes": "Blueprinted as read-only preview layer; UI not implemented.",
+          "drift_level": "none",
+          "next_action": "define read-only report preview adapter"
+        },
+        "github_sync": {
+          "name": "GitHub Sync",
+          "status": "active",
+          "last_checked": "2026-05-24T18:30:00Z",
+          "source": "git status --short && git log --oneline -5",
+          "notes": "Repository sync status is command-derived.",
+          "drift_level": "none",
+          "next_action": "push only after operator review"
+        },
+        "windows_environment": {
+          "name": "Windows Environment",
+          "status": "active",
+          "last_checked": "2026-05-24T18:30:00Z",
+          "source": "C:\\TDK_SYSTEM\\FULL_SYSTEM_MAP.txt",
+          "notes": "Generated by Master System Sync when available.",
+          "drift_level": "low",
+          "next_action": "refresh map after major Windows or tooling changes"
+        }
+      }
+    }
+  ]
+}
