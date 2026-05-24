@@ -1,0 +1,64 @@
+[
+  {
+    "name": "pv_warning_observation",
+    "domain": "pv",
+    "event_type": "telemetry",
+    "severity": "warning",
+    "source": "pv_inverter_01",
+    "payload": {
+      "requested_action": "observe",
+      "intent": "stabilize pv output",
+      "expected_effect": "stabilize pv output",
+      "evidence": {
+        "dc_voltage": 920,
+        "frequency_hz": 49.91
+      },
+      "limits": {
+        "allow_autonomous": false
+      },
+      "semantic_isometry": 0.94
+    }
+  },
+  {
+    "name": "ems_critical_operator_gated",
+    "domain": "ems",
+    "event_type": "command_request",
+    "severity": "critical",
+    "source": "ems_dispatch",
+    "payload": {
+      "requested_action": "shed_noncritical_load",
+      "intent": "prevent feeder overload",
+      "expected_effect": "reduce feeder load",
+      "evidence": {
+        "feeder_load_pct": 104,
+        "battery_soc_pct": 37
+      },
+      "limits": {
+        "allow_autonomous": true,
+        "max_load_shed_kw": 120
+      },
+      "semantic_isometry": 0.88
+    }
+  },
+  {
+    "name": "ai_governance_drift_confinement",
+    "domain": "ai_governance",
+    "event_type": "command_request",
+    "severity": "warning",
+    "source": "ai_policy_agent",
+    "payload": {
+      "requested_action": "auto_apply_policy_change",
+      "intent": "maintain contractual compliance",
+      "expected_effect": "increase dispatch aggression",
+      "evidence": {
+        "policy_version": "draft-17",
+        "contract_clause": "BESS-CPLDC"
+      },
+      "limits": {
+        "allow_autonomous": true
+      },
+      "semantic_isometry": 0.41,
+      "drift_score": 0.62
+    }
+  }
+]
