@@ -1,0 +1,36 @@
+{
+  "schema_version": "1.0.0",
+  "name": "KODEKS Brat Operator Runtime",
+  "status": "ready_to_start",
+  "body": {
+    "pc_root": "C:/KODEKS",
+    "start_script": "C:/KODEKS/KODEKS_BRAT_START.bat",
+    "base_start_script": "C:/KODEKS/TDK_LOCAL_HOUSE_START.bat",
+    "stop_script": "C:/KODEKS/TDK_LOCAL_HOUSE_STOP.bat",
+    "health_script": "C:/KODEKS/scripts/local_house_status.py",
+    "monitor_script": "C:/KODEKS/scripts/monitor_local_house.ps1",
+    "latest_health_report": "C:/KODEKS/docs/local-audits/local_house_monitor_latest.md"
+  },
+  "soul": {
+    "manifest": "C:/Users/zablo/Desktop/metaFroge/ModelForgeGPT\u2122 ZT&SI x3models lvl/KODEKS Operator Dawida ZT&SI v1 LOCAL BUILD MANIFEST.json",
+    "mode": "live_conversation_and_work",
+    "control_channel": "Codex conversation",
+    "provider_independence": "local_first_provider_neutral",
+    "model_adapters": "C:/KODEKS/data/operator/operator_model_adapters.json"
+  },
+  "runtime_contract": [
+    "Dawid uruchamia lokalne cialo przez KODEKS_BRAT_START.bat.",
+    "Codex/KODEKS prowadzi rozmowe i prace w czasie rzeczywistym.",
+    "System sprawdza lokalny kontekst, wykonuje bezpieczne kroki i melduje wynik.",
+    "System dba o PC przez monitoring, audyt, raporty i ostrozne wykonywanie komend.",
+    "Operacje destrukcyjne wymagaja zgody Dawida."
+  ],
+  "operator_phrases": [
+    "Bracie, sprawdz zdrowie systemu.",
+    "Bracie, zrob audyt lokalnego domu.",
+    "Bracie, uruchom KODEKS.",
+    "Bracie, napraw blad.",
+    "Bracie, sprawdz porty i uslugi.",
+    "Bracie, kontynuuj budowe operatora."
+  ]
+}

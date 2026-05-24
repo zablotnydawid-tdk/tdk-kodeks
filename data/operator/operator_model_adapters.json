@@ -1,0 +1,47 @@
+{
+  "schema_version": "1.0.0",
+  "name": "KODEKS Operator Model Adapters",
+  "status": "foundation_ready",
+  "policy": {
+    "architecture": "provider_neutral",
+    "core_rule": "KODEKS core is local. AI providers are replaceable adapters.",
+    "default_preference": "local_first",
+    "external_provider_dependency": "optional_only"
+  },
+  "adapters": {
+    "local_ollama": {
+      "enabled": true,
+      "type": "local_llm_runtime",
+      "base_url": "http://127.0.0.1:11434",
+      "health_endpoint": "http://127.0.0.1:11434/api/tags",
+      "role": "Primary local model runtime when available.",
+      "data_policy": "Keep prompts and local file context on Dawid PC unless Dawid explicitly chooses otherwise."
+    },
+    "codex_session": {
+      "enabled": true,
+      "type": "current_operator_channel",
+      "role": "Live work channel for this session.",
+      "truth_boundary": "This channel may depend on OpenAI infrastructure. It is not the long-term locked core of KODEKS."
+    },
+    "external_api": {
+      "enabled": false,
+      "type": "optional_provider_adapter",
+      "role": "Fallback or specialist model only when Dawid explicitly enables it.",
+      "data_policy": "Never send private local files, secrets, tokens or sensitive context without explicit permission."
+    }
+  },
+  "routing_rules": [
+    "Use local tools, scripts and file checks for PC health before asking an AI provider.",
+    "Prefer local_ollama for offline/local model work when it is running and has usable models.",
+    "Use codex_session for live operator work while Dawid is in this Codex thread.",
+    "Use external_api only if Dawid explicitly asks for it or approves the route.",
+    "If no model is available, continue with deterministic scripts, audits and local reports."
+  ],
+  "next_build_steps": [
+    "Detect installed Ollama models. DONE: scripts/kodeks_local_chat.py --health",
+    "Choose a default local model for KODEKS. DONE: llama3.2:1b fast, llama3.2:3b smart",
+    "Create a local prompt wrapper that loads the KODEKS manifest. DONE: scripts/kodeks_local_chat.py",
+    "Create a small local chat endpoint or CLI for provider-neutral operation.",
+    "Add health checks for model runtime and adapter status."
+  ]
+}
