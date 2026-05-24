@@ -1,0 +1,14 @@
+[
+  {
+    "name": "stable_continuity",
+    "description": "Stable energy continuity and low runtime entropy."
+  },
+  {
+    "name": "critical_drift",
+    "description": "PV/grid charge conflict, phase imbalance, AI recursive loop, and hidden economic loss."
+  },
+  {
+    "name": "recovery_normalized",
+    "description": "Metrics normalized after recovery sequence."
+  }
+]
