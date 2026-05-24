@@ -1,0 +1,92 @@
+{
+    "schema_version":  "1.0.0",
+    "generated_at":  "2026-05-24T19:28:32Z",
+    "operator_context":  {
+                             "host":  "DESKTOP-2MQIA26",
+                             "workspace":  "C:\\KODEKS",
+                             "runtime_mode":  "local"
+                         },
+    "components":  {
+                       "axis_runtime":  {
+                                            "name":  "Final Axis Runtime",
+                                            "status":  "active",
+                                            "last_checked":  "2026-05-24T19:28:32Z",
+                                            "source":  "app/final_axis",
+                                            "notes":  "Final Axis runtime files or logs are present.",
+                                            "drift_level":  "none",
+                                            "next_action":  "none"
+                                        },
+                       "demon_core":  {
+                                          "name":  "DRIFT_ENERGY_MONITOR / DEMON_CORE",
+                                          "status":  "active",
+                                          "last_checked":  "2026-05-24T19:28:32Z",
+                                          "source":  "app/drift_energy_monitor",
+                                          "notes":  "DEMON_CORE module or runtime log is present.",
+                                          "drift_level":  "none",
+                                          "next_action":  "none"
+                                      },
+                       "anchor_git":  {
+                                          "name":  "Anchor Git / AnchorGrid",
+                                          "status":  "active",
+                                          "last_checked":  "2026-05-24T19:28:32Z",
+                                          "source":  "app/anchorgrid",
+                                          "notes":  "AnchorGrid module or test coverage is present.",
+                                          "drift_level":  "none",
+                                          "next_action":  "none"
+                                      },
+                       "master_system_sync":  {
+                                                  "name":  "TDK Master System Sync",
+                                                  "status":  "active",
+                                                  "last_checked":  "2026-05-24T19:28:32Z",
+                                                  "source":  "scripts/master_system_sync.ps1",
+                                                  "notes":  "Master sync script is present; C:\\TDK_SYSTEM map has not been generated or is not visible.",
+                                                  "drift_level":  "low",
+                                                  "next_action":  "run scripts/master_system_sync.ps1 when inventory is needed"
+                                              },
+                       "local_operator_stack":  {
+                                                    "name":  "Local Operator Stack",
+                                                    "status":  "active",
+                                                    "last_checked":  "2026-05-24T19:28:32Z",
+                                                    "source":  "scripts/*local*; docs/runbooks/local-operator-flow.md",
+                                                    "notes":  "Local start, monitor, backup, recovery or audit assets are present.",
+                                                    "drift_level":  "low",
+                                                    "next_action":  "run local operator audit before field handoff"
+                                                },
+                       "proservice_workflow":  {
+                                                   "name":  "ProService / TDK Workflow",
+                                                   "status":  "active",
+                                                   "last_checked":  "2026-05-24T19:28:32Z",
+                                                   "source":  "app/engine/process_engine.py",
+                                                   "notes":  "Process engine and report builder are available.",
+                                                   "drift_level":  "none",
+                                                   "next_action":  "none"
+                                               },
+                       "retina_dashboard":  {
+                                                "name":  "Retina Preview Layer",
+                                                "status":  "unknown",
+                                                "last_checked":  "2026-05-24T19:28:32Z",
+                                                "source":  "docs/blueprints/tdk_control_plane_ux.md",
+                                                "notes":  "Retina layer is blueprinted as read-only preview; dashboard not implemented.",
+                                                "drift_level":  "none",
+                                                "next_action":  "implement read-only preview after status contract stabilizes"
+                                            },
+                       "github_sync":  {
+                                           "name":  "GitHub Sync",
+                                           "status":  "warning",
+                                           "last_checked":  "2026-05-24T19:28:32Z",
+                                           "source":  "git status --short; git log --oneline -1",
+                                           "notes":  "Git command output was incomplete in this shell; HEAD fallback: c1f73ec current HEAD",
+                                           "drift_level":  "low",
+                                           "next_action":  "run git status in the operator shell before push or handoff"
+                                       },
+                       "windows_environment":  {
+                                                   "name":  "Windows Environment",
+                                                   "status":  "warning",
+                                                   "last_checked":  "2026-05-24T19:28:32Z",
+                                                   "source":  "python --version; node --version; workspace runtime markers",
+                                                   "notes":  "Python: WSL/local .venv python present; Node: not found",
+                                                   "drift_level":  "medium",
+                                                   "next_action":  "expose missing runtime in Windows PATH if Control Plane runs in Windows shell"
+                                               }
+                   }
+}
