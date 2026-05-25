@@ -1,0 +1,43 @@
+{
+  "event_id": "drift-energy-sample-001",
+  "telemetry": {
+    "inverter_power": 6.4,
+    "grid_import": 2.1,
+    "grid_export": 0.0,
+    "battery_soc": 58.0,
+    "phase_difference": 42.0,
+    "phase_difference_threshold": 30.0,
+    "voltage": 231.0,
+    "current": 18.2,
+    "temperature": 39.0
+  },
+  "runtime": {
+    "unexpected_events": 42,
+    "total_events": 100,
+    "subsystem_failure_detected": false,
+    "recovery_successful": false
+  },
+  "ai_layer": {
+    "stable_decisions": 55,
+    "total_decisions": 100,
+    "contradiction_events": 32,
+    "total_predictions": 100,
+    "repeated_decisions": 7,
+    "no_state_change": true
+  },
+  "economics": {
+    "expected_yield": 120.0,
+    "real_yield": 94.0,
+    "expected_cost": 400.0,
+    "actual_cost": 735.0
+  },
+  "environmental": {
+    "outside_temp_stable": true,
+    "cop_drop_percent": 24.0
+  },
+  "diagnostics": {
+    "pv_surplus_active": true,
+    "battery_charging_from_grid": true
+  }
+}
+

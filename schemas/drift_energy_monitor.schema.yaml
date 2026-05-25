@@ -1,0 +1,100 @@
+system:
+  name: DRIFT_ENERGY_MONITOR
+  codename: DEMON_CORE
+  version: 1.0.0
+  runtime_mode: isolated_observability
+  doctrine: Operational Reality Is Noisy
+
+inputs:
+  telemetry:
+    - inverter_power
+    - grid_import
+    - grid_export
+    - battery_soc
+    - phase_difference
+    - phase_difference_threshold
+    - voltage
+    - current
+    - temperature
+  runtime:
+    - unexpected_events
+    - total_events
+    - subsystem_failure_detected
+    - recovery_successful
+  ai_layer:
+    - stable_decisions
+    - total_decisions
+    - contradiction_events
+    - total_predictions
+    - repeated_decisions
+    - no_state_change
+  economics:
+    - expected_yield
+    - real_yield
+    - expected_cost
+    - actual_cost
+  environmental:
+    - outside_temp_stable
+    - cop_drop_percent
+  diagnostics:
+    - pv_surplus_active
+    - battery_charging_from_grid
+
+computed_metrics:
+  coherence_index:
+    formula: stable_decisions / total_decisions * 100
+    warning_threshold: 85
+    critical_threshold: 60
+  runtime_entropy:
+    formula: unexpected_events / total_events
+    warning_threshold: 0.15
+    critical_threshold: 0.35
+  energy_loss_factor:
+    formula: expected_yield - real_yield
+    warning_threshold: 8
+    critical_threshold: 20
+  economic_drift:
+    formula: actual_cost - expected_cost
+    warning_threshold: 50
+    critical_threshold: 300
+  ai_conflict_ratio:
+    formula: contradiction_events / total_predictions
+    warning_threshold: 0.10
+    critical_threshold: 0.25
+
+risk_levels:
+  - LOW
+  - MEDIUM
+  - HIGH
+  - CRITICAL
+
+state_machine:
+  states:
+    - stable
+    - observation
+    - degraded
+    - unstable
+    - critical
+    - isolated
+    - recovery
+
+diagnostic_rules:
+  - EMS_GRID_CHARGE_CONFLICT
+  - COP_RUNTIME_DRIFT
+  - PHASE_IMBALANCE_CRITICAL
+  - AI_RECURSIVE_DECISION_LOOP
+
+exports:
+  - json
+  - markdown
+
+compatibility:
+  final_axis_observability: true
+  rollback_support: true
+  degraded_mode_supported: true
+
+safety:
+  auto_remediation: false
+  autonomous_operator_decisions: false
+  execution_scope: diagnostics_scoring_state_machine_export_only
+
