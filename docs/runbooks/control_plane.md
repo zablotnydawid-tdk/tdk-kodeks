@@ -45,6 +45,16 @@ The terminal view then displays:
 - `1` - validation failed; Retina Lite is not shown.
 - `2` - missing dependency or execution failure.
 
+## Exit Code Contract
+
+`scripts\generate_control_plane_snapshot.ps1` always exits explicitly:
+
+- `0` - snapshot was generated.
+- `1` - controlled generation error.
+- `2` - missing dependency, such as missing workspace root.
+
+`scripts\control_plane.ps1` interprets only explicit script exit codes. Component-level `warning` statuses inside `state\control_plane_status.json` are displayed by Retina Lite but do not fail the command. The only validation gate is `scripts\validate_control_plane_snapshot.ps1`; if it returns non-zero, Retina Lite is not shown and Control Plane exits `1`.
+
 ## Recovery Basics
 
 If generation fails:

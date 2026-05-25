@@ -32,9 +32,18 @@ foreach ($requiredPath in @($GenerateScript, $ValidateScript, $ShowScript, $Sche
 Write-Host ""
 Write-Host "TDK Control Plane operator flow" -ForegroundColor Cyan
 Write-Host "1/3 generate snapshot"
+$global:LASTEXITCODE = $null
 & $GenerateScript -Root $Root -OutputPath $SnapshotPath
 $generateExit = $LASTEXITCODE
-if ($null -ne $generateExit -and $generateExit -ne 0) {
+if ($generateExit -eq 1) {
+    Write-Host "snapshot generation failed with controlled error" -ForegroundColor Red
+    exit 2
+}
+elseif ($generateExit -eq 2) {
+    Write-Host "snapshot generation failed because a dependency is missing" -ForegroundColor Red
+    exit 2
+}
+elseif ($generateExit -ne 0) {
     Write-Host "snapshot generation failed with exit code $generateExit" -ForegroundColor Red
     exit 2
 }
@@ -45,6 +54,7 @@ if (-not (Test-Path $SnapshotPath)) {
 }
 
 Write-Host "2/3 validate snapshot"
+$global:LASTEXITCODE = $null
 & $ValidateScript -Root $Root -SnapshotPath $SnapshotPath -SchemaPath $SchemaPath
 $validateExit = $LASTEXITCODE
 if ($validateExit -ne 0) {
@@ -53,6 +63,7 @@ if ($validateExit -ne 0) {
 }
 
 Write-Host "3/3 show Retina Lite"
+$global:LASTEXITCODE = $null
 & $ShowScript -Root $Root -SnapshotPath $SnapshotPath
 $showExit = $LASTEXITCODE
 if ($null -ne $showExit -and $showExit -ne 0) {

@@ -5,6 +5,18 @@ param(
 
 $ErrorActionPreference = "Continue"
 
+function Exit-ControlledError {
+    param([string]$Message)
+    Write-Error $Message
+    exit 1
+}
+
+function Exit-MissingDependency {
+    param([string]$Message)
+    Write-Error $Message
+    exit 2
+}
+
 function Get-UtcNow {
     return (Get-Date).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ")
 }
@@ -211,135 +223,142 @@ if (-not $OutputPath) {
     $OutputPath = Join-Path $Root "state\control_plane_status.json"
 }
 
-$checkedAt = Get-UtcNow
-$stateRoot = Split-Path -Parent $OutputPath
-New-Item -ItemType Directory -Force -Path $stateRoot | Out-Null
-
-$git = Get-GitSnapshot -Workspace $Root
-
-$axisPresent = Test-AnyPath @(
-    (Join-Path $Root "app\final_axis\supervisor.py"),
-    (Join-Path $Root "data\final_axis\runtime_log.jsonl")
-)
-$demonPresent = Test-AnyPath @(
-    (Join-Path $Root "app\drift_energy_monitor\supervisor.py"),
-    (Join-Path $Root "data\drift_energy_monitor\runtime_log.jsonl")
-)
-$anchorPresent = Test-AnyPath @(
-    (Join-Path $Root "app\anchorgrid\engine.py"),
-    (Join-Path $Root "tests\test_anchorgrid_engine.py")
-)
-$masterSyncPresent = Test-Path (Join-Path $Root "scripts\master_system_sync.ps1")
-$operatorStackPresent = Test-AnyPath @(
-    (Join-Path $Root "scripts\start_local_house.ps1"),
-    (Join-Path $Root "scripts\monitor_local_house.ps1"),
-    (Join-Path $Root "docs\runbooks\local-operator-flow.md")
-)
-$workflowPresent = Test-AnyPath @(
-    (Join-Path $Root "app\engine\process_engine.py"),
-    (Join-Path $Root "app\output\report_builder.py")
-)
-$blueprintPresent = Test-Path (Join-Path $Root "docs\blueprints\tdk_control_plane_ux.md")
-$masterMapPresent = Test-Path "C:\TDK_SYSTEM\FULL_SYSTEM_MAP.txt"
-
-$pythonVersion = Get-CommandVersion -Candidates @(
-    (Join-Path $Root ".venv\Scripts\python.exe"),
-    "python",
-    "py"
-) -Arguments @("--version")
-$nodeVersion = Get-CommandVersion -Candidates @(
-    "node",
-    "C:\Program Files\nodejs\node.exe"
-) -Arguments @("--version")
-$pythonOk = -not [string]::IsNullOrWhiteSpace($pythonVersion)
-$nodeOk = -not [string]::IsNullOrWhiteSpace($nodeVersion)
-$wslPythonPresent = Test-Path (Join-Path $Root ".venv\bin\python")
-$packageJsonPresent = Test-Path (Join-Path $Root "package.json")
-
-$components = [ordered]@{
-    axis_runtime = if ($axisPresent) {
-        New-ComponentStatus "Final Axis Runtime" "active" $checkedAt "app/final_axis" "Final Axis runtime files or logs are present." "none" "none"
-    }
-    else {
-        New-ComponentStatus "Final Axis Runtime" "error" $checkedAt "app/final_axis" "Final Axis runtime is missing." "high" "restore or generate Final Axis runtime"
+try {
+    if (-not (Test-Path $Root)) {
+        Exit-MissingDependency "Workspace root missing: $Root"
     }
 
-    demon_core = if ($demonPresent) {
-        New-ComponentStatus "DRIFT_ENERGY_MONITOR / DEMON_CORE" "active" $checkedAt "app/drift_energy_monitor" "DEMON_CORE module or runtime log is present." "none" "none"
-    }
-    else {
-        New-ComponentStatus "DRIFT_ENERGY_MONITOR / DEMON_CORE" "error" $checkedAt "app/drift_energy_monitor" "DEMON_CORE supervision layer is missing." "high" "restore DEMON_CORE module"
+    $checkedAt = Get-UtcNow
+    $stateRoot = Split-Path -Parent $OutputPath
+    New-Item -ItemType Directory -Force -Path $stateRoot -ErrorAction Stop | Out-Null
+
+    $git = Get-GitSnapshot -Workspace $Root
+
+    $axisPresent = Test-AnyPath @(
+        (Join-Path $Root "app\final_axis\supervisor.py"),
+        (Join-Path $Root "data\final_axis\runtime_log.jsonl")
+    )
+    $demonPresent = Test-AnyPath @(
+        (Join-Path $Root "app\drift_energy_monitor\supervisor.py"),
+        (Join-Path $Root "data\drift_energy_monitor\runtime_log.jsonl")
+    )
+    $anchorPresent = Test-AnyPath @(
+        (Join-Path $Root "app\anchorgrid\engine.py"),
+        (Join-Path $Root "tests\test_anchorgrid_engine.py")
+    )
+    $masterSyncPresent = Test-Path (Join-Path $Root "scripts\master_system_sync.ps1")
+    $operatorStackPresent = Test-AnyPath @(
+        (Join-Path $Root "scripts\start_local_house.ps1"),
+        (Join-Path $Root "scripts\monitor_local_house.ps1"),
+        (Join-Path $Root "docs\runbooks\local-operator-flow.md")
+    )
+    $workflowPresent = Test-AnyPath @(
+        (Join-Path $Root "app\engine\process_engine.py"),
+        (Join-Path $Root "app\output\report_builder.py")
+    )
+    $blueprintPresent = Test-Path (Join-Path $Root "docs\blueprints\tdk_control_plane_ux.md")
+    $masterMapPresent = Test-Path "C:\TDK_SYSTEM\FULL_SYSTEM_MAP.txt"
+
+    $pythonVersion = Get-CommandVersion -Candidates @(
+        (Join-Path $Root ".venv\Scripts\python.exe"),
+        "python",
+        "py"
+    ) -Arguments @("--version")
+    $nodeVersion = Get-CommandVersion -Candidates @(
+        "node",
+        "C:\Program Files\nodejs\node.exe"
+    ) -Arguments @("--version")
+    $pythonOk = -not [string]::IsNullOrWhiteSpace($pythonVersion)
+    $nodeOk = -not [string]::IsNullOrWhiteSpace($nodeVersion)
+    $wslPythonPresent = Test-Path (Join-Path $Root ".venv\bin\python")
+    $packageJsonPresent = Test-Path (Join-Path $Root "package.json")
+
+    $components = [ordered]@{
+        axis_runtime = if ($axisPresent) {
+            New-ComponentStatus "Final Axis Runtime" "active" $checkedAt "app/final_axis" "Final Axis runtime files or logs are present." "none" "none"
+        }
+        else {
+            New-ComponentStatus "Final Axis Runtime" "error" $checkedAt "app/final_axis" "Final Axis runtime is missing." "high" "restore or generate Final Axis runtime"
+        }
+
+        demon_core = if ($demonPresent) {
+            New-ComponentStatus "DRIFT_ENERGY_MONITOR / DEMON_CORE" "active" $checkedAt "app/drift_energy_monitor" "DEMON_CORE module or runtime log is present." "none" "none"
+        }
+        else {
+            New-ComponentStatus "DRIFT_ENERGY_MONITOR / DEMON_CORE" "error" $checkedAt "app/drift_energy_monitor" "DEMON_CORE supervision layer is missing." "high" "restore DEMON_CORE module"
+        }
+
+        anchor_git = if ($anchorPresent) {
+            New-ComponentStatus "Anchor Git / AnchorGrid" "active" $checkedAt "app/anchorgrid" "AnchorGrid module or test coverage is present." "none" "none"
+        }
+        else {
+            New-ComponentStatus "Anchor Git / AnchorGrid" "unknown" $checkedAt "app/anchorgrid" "AnchorGrid presence could not be confirmed." "medium" "inspect AnchorGrid module and tests"
+        }
+
+        master_system_sync = if ($masterSyncPresent) {
+            $note = if ($masterMapPresent) { "Master sync script and C:\TDK_SYSTEM map are present." } else { "Master sync script is present; C:\TDK_SYSTEM map has not been generated or is not visible." }
+            $drift = if ($masterMapPresent) { "none" } else { "low" }
+            $next = if ($masterMapPresent) { "none" } else { "run scripts/master_system_sync.ps1 when inventory is needed" }
+            New-ComponentStatus "TDK Master System Sync" "active" $checkedAt "scripts/master_system_sync.ps1" $note $drift $next
+        }
+        else {
+            New-ComponentStatus "TDK Master System Sync" "error" $checkedAt "scripts/master_system_sync.ps1" "Master System Sync script is missing." "high" "restore master_system_sync.ps1"
+        }
+
+        local_operator_stack = if ($operatorStackPresent) {
+            New-ComponentStatus "Local Operator Stack" "active" $checkedAt "scripts/*local*; docs/runbooks/local-operator-flow.md" "Local start, monitor, backup, recovery or audit assets are present." "low" "run local operator audit before field handoff"
+        }
+        else {
+            New-ComponentStatus "Local Operator Stack" "error" $checkedAt "scripts/*local*" "Local operator scripts are missing." "high" "restore Local Operator Stack"
+        }
+
+        proservice_workflow = if ($workflowPresent) {
+            New-ComponentStatus "ProService / TDK Workflow" "active" $checkedAt "app/engine/process_engine.py" "Process engine and report builder are available." "none" "none"
+        }
+        else {
+            New-ComponentStatus "ProService / TDK Workflow" "error" $checkedAt "app/engine/process_engine.py" "Process workflow files are missing." "high" "restore process workflow modules"
+        }
+
+        retina_dashboard = if ($blueprintPresent) {
+            New-ComponentStatus "Retina Preview Layer" "unknown" $checkedAt "docs/blueprints/tdk_control_plane_ux.md" "Retina layer is blueprinted as read-only preview; dashboard not implemented." "none" "implement read-only preview after status contract stabilizes"
+        }
+        else {
+            New-ComponentStatus "Retina Preview Layer" "unknown" $checkedAt "docs/blueprints/tdk_control_plane_ux.md" "Retina blueprint is missing." "medium" "restore or write Control Plane UX blueprint"
+        }
+
+        github_sync = New-ComponentStatus "GitHub Sync" $git.status $checkedAt "git status --short; git log --oneline -1" $git.notes $git.drift $git.next
+
+        windows_environment = if ($pythonOk -and $nodeOk) {
+            New-ComponentStatus "Windows Environment" "active" $checkedAt "python --version; node --version" "Python: $pythonVersion; Node: $nodeVersion" "none" "none"
+        }
+        elseif ($pythonOk -or $nodeOk -or $wslPythonPresent -or $packageJsonPresent) {
+            $pythonNote = if ($pythonOk) { $pythonVersion } elseif ($wslPythonPresent) { "WSL/local .venv python present" } else { "not found" }
+            $nodeNote = if ($nodeOk) { $nodeVersion } elseif ($packageJsonPresent) { "package.json present, node not visible to this shell" } else { "not found" }
+            New-ComponentStatus "Windows Environment" "warning" $checkedAt "python --version; node --version; workspace runtime markers" "Python: $pythonNote; Node: $nodeNote" "medium" "expose missing runtime in Windows PATH if Control Plane runs in Windows shell"
+        }
+        else {
+            New-ComponentStatus "Windows Environment" "error" $checkedAt "python --version; node --version" "Python and Node were not found in PATH." "high" "install or expose Python and Node in PATH"
+        }
     }
 
-    anchor_git = if ($anchorPresent) {
-        New-ComponentStatus "Anchor Git / AnchorGrid" "active" $checkedAt "app/anchorgrid" "AnchorGrid module or test coverage is present." "none" "none"
-    }
-    else {
-        New-ComponentStatus "Anchor Git / AnchorGrid" "unknown" $checkedAt "app/anchorgrid" "AnchorGrid presence could not be confirmed." "medium" "inspect AnchorGrid module and tests"
-    }
-
-    master_system_sync = if ($masterSyncPresent) {
-        $note = if ($masterMapPresent) { "Master sync script and C:\TDK_SYSTEM map are present." } else { "Master sync script is present; C:\TDK_SYSTEM map has not been generated or is not visible." }
-        $drift = if ($masterMapPresent) { "none" } else { "low" }
-        $next = if ($masterMapPresent) { "none" } else { "run scripts/master_system_sync.ps1 when inventory is needed" }
-        New-ComponentStatus "TDK Master System Sync" "active" $checkedAt "scripts/master_system_sync.ps1" $note $drift $next
-    }
-    else {
-        New-ComponentStatus "TDK Master System Sync" "error" $checkedAt "scripts/master_system_sync.ps1" "Master System Sync script is missing." "high" "restore master_system_sync.ps1"
+    $snapshot = [ordered]@{
+        schema_version = "1.0.0"
+        generated_at = $checkedAt
+        operator_context = [ordered]@{
+            host = $env:COMPUTERNAME
+            workspace = $Root
+            runtime_mode = "local"
+        }
+        components = $components
     }
 
-    local_operator_stack = if ($operatorStackPresent) {
-        New-ComponentStatus "Local Operator Stack" "active" $checkedAt "scripts/*local*; docs/runbooks/local-operator-flow.md" "Local start, monitor, backup, recovery or audit assets are present." "low" "run local operator audit before field handoff"
-    }
-    else {
-        New-ComponentStatus "Local Operator Stack" "error" $checkedAt "scripts/*local*" "Local operator scripts are missing." "high" "restore Local Operator Stack"
-    }
+    $json = $snapshot | ConvertTo-Json -Depth 8
+    $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
+    [System.IO.File]::WriteAllText($OutputPath, $json, $utf8NoBom)
 
-    proservice_workflow = if ($workflowPresent) {
-        New-ComponentStatus "ProService / TDK Workflow" "active" $checkedAt "app/engine/process_engine.py" "Process engine and report builder are available." "none" "none"
-    }
-    else {
-        New-ComponentStatus "ProService / TDK Workflow" "error" $checkedAt "app/engine/process_engine.py" "Process workflow files are missing." "high" "restore process workflow modules"
-    }
-
-    retina_dashboard = if ($blueprintPresent) {
-        New-ComponentStatus "Retina Preview Layer" "unknown" $checkedAt "docs/blueprints/tdk_control_plane_ux.md" "Retina layer is blueprinted as read-only preview; dashboard not implemented." "none" "implement read-only preview after status contract stabilizes"
-    }
-    else {
-        New-ComponentStatus "Retina Preview Layer" "unknown" $checkedAt "docs/blueprints/tdk_control_plane_ux.md" "Retina blueprint is missing." "medium" "restore or write Control Plane UX blueprint"
-    }
-
-    github_sync = New-ComponentStatus "GitHub Sync" $git.status $checkedAt "git status --short; git log --oneline -1" $git.notes $git.drift $git.next
-
-    windows_environment = if ($pythonOk -and $nodeOk) {
-        New-ComponentStatus "Windows Environment" "active" $checkedAt "python --version; node --version" "Python: $pythonVersion; Node: $nodeVersion" "none" "none"
-    }
-    elseif ($pythonOk -or $nodeOk -or $wslPythonPresent -or $packageJsonPresent) {
-        $pythonNote = if ($pythonOk) { $pythonVersion } elseif ($wslPythonPresent) { "WSL/local .venv python present" } else { "not found" }
-        $nodeNote = if ($nodeOk) { $nodeVersion } elseif ($packageJsonPresent) { "package.json present, node not visible to this shell" } else { "not found" }
-        New-ComponentStatus "Windows Environment" "warning" $checkedAt "python --version; node --version; workspace runtime markers" "Python: $pythonNote; Node: $nodeNote" "medium" "expose missing runtime in Windows PATH if Control Plane runs in Windows shell"
-    }
-    else {
-        New-ComponentStatus "Windows Environment" "error" $checkedAt "python --version; node --version" "Python and Node were not found in PATH." "high" "install or expose Python and Node in PATH"
-    }
+    Write-Host "Control Plane status snapshot: $OutputPath"
+    exit 0
 }
-
-$snapshot = [ordered]@{
-    schema_version = "1.0.0"
-    generated_at = $checkedAt
-    operator_context = [ordered]@{
-        host = $env:COMPUTERNAME
-        workspace = $Root
-        runtime_mode = "local"
-    }
-    components = $components
+catch {
+    Exit-ControlledError "Control Plane snapshot generation failed: $($_.Exception.Message)"
 }
-
-$snapshot |
-    ConvertTo-Json -Depth 8 |
-    ForEach-Object {
-        $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
-        [System.IO.File]::WriteAllText($OutputPath, $_, $utf8NoBom)
-    }
-
-Write-Host "Control Plane status snapshot: $OutputPath"
