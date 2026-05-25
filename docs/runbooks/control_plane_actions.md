@@ -23,6 +23,7 @@ Available actions:
 - `python_env_check`
 - `node_env_check`
 - `history_cleanup_preview`
+- `history_cleanup_confirmed`
 - `control_plane_verify`
 
 ## Output Contract
@@ -39,6 +40,8 @@ Each action prints:
 Operator actions do not perform destructive changes. They do not delete files, reset Git, install dependencies, start background services, schedule tasks, or run self-healing.
 
 `history_cleanup_preview` is a preview only. It counts history snapshots and reports size. The operator decides whether any manual cleanup should happen later.
+
+`history_cleanup_confirmed` is the only safe-write action. It still runs as preview unless the operator passes `-Confirm`, and it only removes history snapshots older than the selected retention window.
 
 ## Operator Decision
 

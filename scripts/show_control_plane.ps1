@@ -65,6 +65,7 @@ function Write-OperatorActionsSection {
         "python_env_check",
         "node_env_check",
         "history_cleanup_preview",
+        "history_cleanup_confirmed",
         "control_plane_verify"
     )
 

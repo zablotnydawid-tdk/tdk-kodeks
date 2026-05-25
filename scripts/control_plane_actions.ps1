@@ -1,10 +1,16 @@
 param(
     [string]$Root = "C:\KODEKS",
-    [ValidateSet("all", "repo_sync_check", "workspace_clean_check", "python_env_check", "node_env_check", "history_cleanup_preview", "control_plane_verify")]
-    [string]$Action = "all"
+    [ValidateSet("all", "repo_sync_check", "workspace_clean_check", "python_env_check", "node_env_check", "history_cleanup_preview", "history_cleanup_confirmed", "control_plane_verify")]
+    [string]$Action = "all",
+    [switch]$Preview,
+    [switch]$Confirm,
+    [int]$OlderThanDays = 30
 )
 
 $ErrorActionPreference = "Continue"
+
+$safeWriteActions = @("history_cleanup_confirmed")
+$isConfirmedSafeWrite = $Confirm.IsPresent -and -not $Preview.IsPresent -and $safeWriteActions -contains $Action
 
 function Resolve-Executable {
     param([string[]]$Candidates)
@@ -170,6 +176,47 @@ function Invoke-HistoryCleanupPreview {
     Write-ActionResult "history_cleanup_preview" $preview $recommendation $risk
 }
 
+function Invoke-HistoryCleanupConfirmed {
+    $historyRoot = Join-Path $Root "state\history"
+    if (-not (Test-Path $historyRoot)) {
+        Write-ActionResult "history_cleanup_confirmed" "history folder missing" "no cleanup needed" "none"
+        return
+    }
+
+    if ($OlderThanDays -lt 1) {
+        Write-ActionResult "history_cleanup_confirmed" "invalid OlderThanDays=$OlderThanDays" "use OlderThanDays greater than or equal to 1" "medium"
+        return
+    }
+
+    $cutoffUtc = (Get-Date).ToUniversalTime().AddDays(-1 * $OlderThanDays)
+    $files = @(Get-ChildItem $historyRoot -Filter "control_plane_status_*.json" -File |
+        Where-Object { $_.LastWriteTimeUtc -lt $cutoffUtc } |
+        Sort-Object LastWriteTimeUtc)
+
+    Write-Host ""
+    Write-Host ("history cleanup cutoff: older than {0} day(s), before {1:o}" -f $OlderThanDays, $cutoffUtc) -ForegroundColor Cyan
+    if ($files.Count -eq 0) {
+        Write-Host "files selected: none"
+        Write-ActionResult "history_cleanup_confirmed" "0 snapshot(s) eligible; no files deleted" "none" "none"
+        return
+    }
+
+    Write-Host "files selected:"
+    foreach ($file in $files) {
+        Write-Host ("- {0}" -f $file.FullName)
+    }
+
+    if (-not $isConfirmedSafeWrite) {
+        Write-ActionResult "history_cleanup_confirmed" "$($files.Count) snapshot(s) eligible; preview only; no files deleted" "rerun with -Confirm only after operator review" "low"
+        return
+    }
+
+    foreach ($file in $files) {
+        Remove-Item -LiteralPath $file.FullName -Force
+    }
+    Write-ActionResult "history_cleanup_confirmed" "$($files.Count) snapshot(s) deleted after explicit -Confirm" "none" "low"
+}
+
 function Invoke-ControlPlaneVerify {
     $validateScript = Join-Path $Root "scripts\validate_control_plane_snapshot.ps1"
     if (-not (Test-Path $validateScript)) {
@@ -192,12 +239,18 @@ $actions = @(
     "python_env_check",
     "node_env_check",
     "history_cleanup_preview",
+    "history_cleanup_confirmed",
     "control_plane_verify"
 )
 
 Write-Host ""
 Write-Host "TDK Control Plane Operator Actions" -ForegroundColor Cyan
-Write-Host "mode: read-only / preview"
+if ($isConfirmedSafeWrite) {
+    Write-Host "mode: confirmed safe-write"
+}
+else {
+    Write-Host "mode: read-only / preview"
+}
 
 $selectedActions = if ($Action -eq "all") { $actions } else { @($Action) }
 
@@ -208,6 +261,7 @@ foreach ($selectedAction in $selectedActions) {
         "python_env_check" { Invoke-PythonEnvCheck }
         "node_env_check" { Invoke-NodeEnvCheck }
         "history_cleanup_preview" { Invoke-HistoryCleanupPreview }
+        "history_cleanup_confirmed" { Invoke-HistoryCleanupConfirmed }
         "control_plane_verify" { Invoke-ControlPlaneVerify }
     }
 }
