@@ -1,0 +1,63 @@
+param(
+    [string]$Root = "C:\KODEKS",
+    [string]$SnapshotPath = "",
+    [string]$SchemaPath = ""
+)
+
+$ErrorActionPreference = "Continue"
+
+if (-not $SnapshotPath) {
+    $SnapshotPath = Join-Path $Root "state\control_plane_status.json"
+}
+if (-not $SchemaPath) {
+    $SchemaPath = Join-Path $Root "schemas\control_plane_status.schema.json"
+}
+
+$GenerateScript = Join-Path $Root "scripts\generate_control_plane_snapshot.ps1"
+$ValidateScript = Join-Path $Root "scripts\validate_control_plane_snapshot.ps1"
+$ShowScript = Join-Path $Root "scripts\show_control_plane.ps1"
+
+function Stop-MissingDependency {
+    param([string]$Path)
+    Write-Host "missing dependency: $Path" -ForegroundColor Red
+    exit 2
+}
+
+foreach ($requiredPath in @($GenerateScript, $ValidateScript, $ShowScript, $SchemaPath)) {
+    if (-not (Test-Path $requiredPath)) {
+        Stop-MissingDependency $requiredPath
+    }
+}
+
+Write-Host ""
+Write-Host "TDK Control Plane operator flow" -ForegroundColor Cyan
+Write-Host "1/3 generate snapshot"
+& $GenerateScript -Root $Root -OutputPath $SnapshotPath
+$generateExit = $LASTEXITCODE
+if ($null -ne $generateExit -and $generateExit -ne 0) {
+    Write-Host "snapshot generation failed with exit code $generateExit" -ForegroundColor Red
+    exit 2
+}
+
+if (-not (Test-Path $SnapshotPath)) {
+    Write-Host "snapshot generation did not create: $SnapshotPath" -ForegroundColor Red
+    exit 2
+}
+
+Write-Host "2/3 validate snapshot"
+& $ValidateScript -Root $Root -SnapshotPath $SnapshotPath -SchemaPath $SchemaPath
+$validateExit = $LASTEXITCODE
+if ($validateExit -ne 0) {
+    Write-Host "validation failed; Retina Lite will not start" -ForegroundColor Red
+    exit 1
+}
+
+Write-Host "3/3 show Retina Lite"
+& $ShowScript -Root $Root -SnapshotPath $SnapshotPath
+$showExit = $LASTEXITCODE
+if ($null -ne $showExit -and $showExit -ne 0) {
+    Write-Host "Retina Lite failed with exit code $showExit" -ForegroundColor Red
+    exit 2
+}
+
+exit 0
