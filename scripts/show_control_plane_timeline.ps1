@@ -44,18 +44,31 @@ function Get-DriftRank {
 }
 
 function Get-OverallState {
-    param([object[]]$Components)
+    param(
+        [object[]]$Components,
+        [object]$RetinaDashboard
+    )
 
-    $maxRank = -1
-    $overall = "unknown"
-    foreach ($component in $Components) {
-        $rank = Get-StatusRank $component.status
-        if ($rank -gt $maxRank) {
-            $maxRank = $rank
-            $overall = $component.status
-        }
+    $statuses = @($Components | ForEach-Object { $_.status })
+    if ($statuses -contains "error") {
+        return "error"
     }
-    return $overall
+    if ($statuses -contains "warning") {
+        return "warning"
+    }
+    if ($statuses -contains "unknown") {
+        $unknownComponents = @($Components | Where-Object { $_.status -eq "unknown" })
+        if (
+            $unknownComponents.Count -eq 1 -and
+            $null -ne $RetinaDashboard -and
+            $unknownComponents[0] -eq $RetinaDashboard -and
+            $RetinaDashboard.notes -like "*blueprinted as read-only preview*"
+        ) {
+            return "active-with-planned-components"
+        }
+        return "unknown"
+    }
+    return "active"
 }
 
 function Get-MaxDriftLevel {
@@ -77,6 +90,8 @@ function Get-StatusColor {
     param([string]$Status)
     switch ($Status) {
         "active" { return "Green" }
+        "active-with-planned-components" { return "Green" }
+        "warning-free-planned" { return "Green" }
         "warning" { return "Yellow" }
         "error" { return "Red" }
         "unknown" { return "DarkGray" }
@@ -115,8 +130,8 @@ if ($files.Count -eq 0) {
     exit 1
 }
 
-Write-Host ("{0,-22} {1,-44} {2,-10} {3,-8} {4,-6} {5}" -f "timestamp", "filename", "overall", "warnings", "errors", "max_drift")
-Write-Host ("{0,-22} {1,-44} {2,-10} {3,-8} {4,-6} {5}" -f "---------", "--------", "-------", "--------", "------", "---------")
+Write-Host ("{0,-22} {1,-44} {2,-32} {3,-8} {4,-6} {5}" -f "timestamp", "filename", "overall", "warnings", "errors", "max_drift")
+Write-Host ("{0,-22} {1,-44} {2,-32} {3,-8} {4,-6} {5}" -f "---------", "--------", "-------", "--------", "------", "---------")
 
 $shown = 0
 foreach ($file in $files) {
@@ -128,10 +143,10 @@ foreach ($file in $files) {
     $components = Get-ComponentValues -Snapshot $snapshot
     $warnings = @($components | Where-Object { $_.status -eq "warning" }).Count
     $errors = @($components | Where-Object { $_.status -eq "error" }).Count
-    $overall = Get-OverallState -Components $components
+    $overall = Get-OverallState -Components $components -RetinaDashboard $snapshot.components.retina_dashboard
     $maxDrift = Get-MaxDriftLevel -Components $components
     $color = Get-StatusColor $overall
-    $line = "{0,-22} {1,-44} {2,-10} {3,-8} {4,-6} {5}" -f `
+    $line = "{0,-22} {1,-44} {2,-32} {3,-8} {4,-6} {5}" -f `
         $snapshot.generated_at,
         $file.Name,
         $overall,
