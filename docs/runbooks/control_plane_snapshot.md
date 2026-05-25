@@ -32,17 +32,28 @@ status-ok
 
 If validation fails, the script prints one error per line and exits with a non-zero code.
 
-## 3. When To Use
+## 3. Show Retina Lite
+
+```powershell
+cd C:\KODEKS
+.\scripts\show_control_plane.ps1
+```
+
+This renders a read-only terminal view from `state\control_plane_status.json`.
+It does not refresh live, does not launch a GUI, and does not execute actions.
+
+## 4. When To Use
 
 Use this before building or running any Control Plane UI layer:
 
 - after changing `schemas/control_plane_status.schema.json`,
 - after changing `scripts/generate_control_plane_snapshot.ps1`,
+- after changing `scripts/show_control_plane.ps1`,
 - before wiring the dashboard to `state/control_plane_status.json`,
 - before operator handoff,
 - after adding a new runtime module that should appear in the status plane.
 
-## 4. What The Validator Does Not Do
+## 5. What The Validator Does Not Do
 
 - It does not launch the dashboard.
 - It does not monitor processes continuously.
