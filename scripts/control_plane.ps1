@@ -16,6 +16,7 @@ if (-not $SchemaPath) {
 $GenerateScript = Join-Path $Root "scripts\generate_control_plane_snapshot.ps1"
 $ValidateScript = Join-Path $Root "scripts\validate_control_plane_snapshot.ps1"
 $ShowScript = Join-Path $Root "scripts\show_control_plane.ps1"
+$HistoryRoot = Join-Path $Root "state\history"
 
 function Stop-MissingDependency {
     param([string]$Path)
@@ -31,7 +32,7 @@ foreach ($requiredPath in @($GenerateScript, $ValidateScript, $ShowScript, $Sche
 
 Write-Host ""
 Write-Host "TDK Control Plane operator flow" -ForegroundColor Cyan
-Write-Host "1/3 generate snapshot"
+Write-Host "1/4 generate snapshot"
 $global:LASTEXITCODE = $null
 & $GenerateScript -Root $Root -OutputPath $SnapshotPath
 $generateExit = $LASTEXITCODE
@@ -53,7 +54,7 @@ if (-not (Test-Path $SnapshotPath)) {
     exit 2
 }
 
-Write-Host "2/3 validate snapshot"
+Write-Host "2/4 validate snapshot"
 $global:LASTEXITCODE = $null
 & $ValidateScript -Root $Root -SnapshotPath $SnapshotPath -SchemaPath $SchemaPath
 $validateExit = $LASTEXITCODE
@@ -62,7 +63,20 @@ if ($validateExit -ne 0) {
     exit 1
 }
 
-Write-Host "3/3 show Retina Lite"
+Write-Host "3/4 archive snapshot"
+try {
+    New-Item -ItemType Directory -Force -Path $HistoryRoot -ErrorAction Stop | Out-Null
+    $historyStamp = (Get-Date).ToString("yyyyMMdd_HHmmss")
+    $historyPath = Join-Path $HistoryRoot "control_plane_status_$historyStamp.json"
+    Copy-Item -Path $SnapshotPath -Destination $historyPath -Force -ErrorAction Stop
+    Write-Host "snapshot archived: $historyPath"
+}
+catch {
+    Write-Host "snapshot archive failed: $($_.Exception.Message)" -ForegroundColor Red
+    exit 2
+}
+
+Write-Host "4/4 show Retina Lite"
 $global:LASTEXITCODE = $null
 & $ShowScript -Root $Root -SnapshotPath $SnapshotPath
 $showExit = $LASTEXITCODE

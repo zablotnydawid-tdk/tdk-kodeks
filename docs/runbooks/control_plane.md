@@ -9,11 +9,12 @@ cd C:\KODEKS
 .\scripts\control_plane.ps1
 ```
 
-The command performs a deterministic three-step flow:
+The command performs a deterministic four-step flow:
 
 1. Generate `state\control_plane_status.json`.
 2. Validate it against `schemas\control_plane_status.schema.json`.
-3. Render Retina Lite in the terminal.
+3. Archive the validated snapshot into `state\history`.
+4. Render Retina Lite in the terminal.
 
 ## Expected Flow
 
@@ -21,10 +22,11 @@ Successful run:
 
 ```text
 TDK Control Plane operator flow
-1/3 generate snapshot
-2/3 validate snapshot
+1/4 generate snapshot
+2/4 validate snapshot
 status-ok
-3/3 show Retina Lite
+3/4 archive snapshot
+4/4 show Retina Lite
 ```
 
 The terminal view then displays:
@@ -38,6 +40,12 @@ The terminal view then displays:
 - overall system state
 - warning/error counts
 - snapshot timestamp
+
+Validated snapshots are archived as:
+
+```text
+state\history\control_plane_status_YYYYMMDD_HHMMSS.json
+```
 
 ## Exit Codes
 
