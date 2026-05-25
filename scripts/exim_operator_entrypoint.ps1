@@ -14,6 +14,8 @@ $ContinuityStatePath = Join-Path $Root "data\vma\vma_continuity_state.json"
 $LiveCasePath = Join-Path $Root "data\live_ops\live_case_result.json"
 $DriftLogPath = Join-Path $Root "data\drift_energy_monitor\runtime_log.jsonl"
 $DriftReportPath = Join-Path $Root "data\drift_energy_monitor\operational_report.md"
+$KnowledgeLayerPath = Join-Path $Root "knowledge\document_ingestor.py"
+$KnowledgeRunbookPath = Join-Path $Root "docs\runbooks\exim_knowledge_ingestion_engine.md"
 
 function Write-Section {
     param([string]$Title)
@@ -335,6 +337,12 @@ if ($liveCase.recommendation.operator_next_actions) {
 else {
     Write-Kv "next operator action" "UNKNOWN"
 }
+
+Write-Section "Complex Knowledge Layer"
+Write-Kv "knowledge ingestion" (Get-PathStatus $KnowledgeLayerPath) $(if (Test-Path $KnowledgeLayerPath) { "Green" } else { "Yellow" })
+Write-Kv "runbook" (Get-PathStatus $KnowledgeRunbookPath) $(if (Test-Path $KnowledgeRunbookPath) { "Green" } else { "Yellow" })
+Write-Kv "default posture" "trace-first / human-review-gated / no cloud OCR" "Green"
+Write-Kv "recommendation gate" "source trace + domain classification + human validation"
 
 Write-Section "Recovery Hints"
 if ($missing.Count -eq 0) {

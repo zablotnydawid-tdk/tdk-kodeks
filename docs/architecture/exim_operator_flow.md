@@ -28,6 +28,7 @@ The entrypoint does not create a new dashboard, runtime, microservice, model rou
 | DEMON / Drift Energy Monitor | `data/drift_energy_monitor/runtime_log.jsonl` | Latest drift/risk analysis |
 | VMA Continuity | `data/vma/vma_continuity_state.json` | Continuity score, anchor, recovery status |
 | Live Case Loop | `data/live_ops/live_case_result.json`, `scripts/live_case_demo.ps1` | Last active operator-gated case |
+| Complex Knowledge Layer | `knowledge/document_ingestor.py`, `scripts/run_knowledge_ingestion.py` | PDF/text -> chunks -> source graph -> validated report context |
 | Existing gateway/forms/admin/reports | `app/api/server.py`, storage/report modules | Local application boundary retained for later use |
 
 ## Runtime Posture
