@@ -59,76 +59,6 @@ if (-not $pythonCommand) {
     exit 2
 }
 
-$pythonCode = @'
-import json
-import sys
-from pathlib import Path
-
-root = Path(sys.argv[1])
-action = sys.argv[2]
-session_path_arg = sys.argv[3]
-user_input = sys.argv[4]
-assistant_output = sys.argv[5]
-event_type = sys.argv[6]
-notes = sys.argv[7]
-visual_reentry_required = sys.argv[8].lower() == "true"
-
-if str(root) not in sys.path:
-    sys.path.insert(0, str(root))
-
-from app.vma.session_recorder import (
-    append_turn,
-    create_session,
-    finalize_session,
-    load_session,
-    save_report,
-    save_session,
-)
-
-session_dir = root / "data" / "vma" / "sessions"
-session_dir.mkdir(parents=True, exist_ok=True)
-
-if action == "start":
-    session = create_session(notes=notes)
-    session_path = session_dir / f"{session['session_id']}.json"
-    save_session(session, session_path)
-    print(json.dumps({"session_path": str(session_path), "session_id": session["session_id"], "status": "started"}, sort_keys=True))
-elif action == "add":
-    if not session_path_arg:
-        raise SystemExit("SessionPath is required for add")
-    session_path = Path(session_path_arg)
-    session = load_session(session_path)
-    session = append_turn(
-        session,
-        user_input=user_input,
-        assistant_output=assistant_output,
-        event_type=event_type,
-        notes=notes,
-        visual_reentry_required=visual_reentry_required,
-    )
-    save_session(session, session_path)
-    print(json.dumps({"session_path": str(session_path), "turns": len(session["turns"]), "status": "turn-added"}, sort_keys=True))
-elif action == "finalize":
-    if not session_path_arg:
-        raise SystemExit("SessionPath is required for finalize")
-    session_path = Path(session_path_arg)
-    session = finalize_session(load_session(session_path))
-    save_session(session, session_path)
-    report_path = session_path.with_suffix(".md")
-    save_report(session, report_path)
-    print(json.dumps({
-        "session_path": str(session_path),
-        "report_path": str(report_path),
-        "turns": len(session["turns"]),
-        "continuity_score": session["continuity_metrics"].get("continuity_score"),
-        "topology_retention_score": session["continuity_metrics"].get("topology_retention_score"),
-        "recovery_efficiency": session["continuity_metrics"].get("recovery_efficiency"),
-        "visual_reentry_required": session["continuity_metrics"].get("visual_reentry_required"),
-        "first_real_user_continuity_win": session["first_real_user_continuity_win"],
-        "status": "finalized",
-    }, sort_keys=True))
-'@
-
 if (-not $SessionPath) {
     $SessionPathForPython = ""
 }
@@ -136,17 +66,51 @@ else {
     $SessionPathForPython = [System.IO.Path]::GetFullPath($SessionPath)
 }
 
+$helperPath = Join-Path $Root "scripts\vma_record_session.py"
+if (-not (Test-Path $helperPath)) {
+    Write-Host "missing helper: $helperPath" -ForegroundColor Red
+    exit 2
+}
+
+$arguments = @(
+    $Action,
+    "--root", $Root,
+    "--event-type", $EventType
+)
+if ($SessionPathForPython) {
+    $arguments += @("--session-path", $SessionPathForPython)
+}
+if ($UserInput) {
+    $arguments += @("--user-input", $UserInput)
+}
+if ($AssistantOutput) {
+    $arguments += @("--assistant-output", $AssistantOutput)
+}
+if ($Notes) {
+    $arguments += @("--notes", $Notes)
+}
+if ($VisualReentryRequired.IsPresent) {
+    $arguments += "--visual-reentry-required"
+}
+
 try {
     if ($pythonCommand.Kind -eq "wsl") {
-        $sessionArg = if ($SessionPathForPython) { Convert-ToWslPath $SessionPathForPython } else { "" }
-        $output = & wsl.exe $pythonCommand.Path -c $pythonCode `
-            (Convert-ToWslPath $Root) $Action $sessionArg $UserInput $AssistantOutput $EventType $Notes `
-            ([string]$VisualReentryRequired.IsPresent).ToLowerInvariant() 2>&1
+        $wslArgs = @((Convert-ToWslPath $helperPath))
+        foreach ($argument in $arguments) {
+            if ($argument -eq $Root) {
+                $wslArgs += (Convert-ToWslPath $Root)
+            }
+            elseif ($argument -eq $SessionPathForPython) {
+                $wslArgs += (Convert-ToWslPath $SessionPathForPython)
+            }
+            else {
+                $wslArgs += $argument
+            }
+        }
+        $output = & wsl.exe $pythonCommand.Path @wslArgs 2>&1
     }
     else {
-        $output = & $pythonCommand.Path -c $pythonCode `
-            $Root $Action $SessionPathForPython $UserInput $AssistantOutput $EventType $Notes `
-            ([string]$VisualReentryRequired.IsPresent).ToLowerInvariant() 2>&1
+        $output = & $pythonCommand.Path $helperPath @arguments 2>&1
     }
     if ($LASTEXITCODE -ne 0) {
         Write-Host "VMA session recorder failed" -ForegroundColor Red
@@ -178,4 +142,3 @@ catch {
     Write-Host "VMA session recorder error: $($_.Exception.Message)" -ForegroundColor Red
     exit 1
 }
-
