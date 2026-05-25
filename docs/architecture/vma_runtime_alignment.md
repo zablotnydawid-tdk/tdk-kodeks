@@ -5,9 +5,10 @@ This document aligns the VMA-USCP / Voice Mode Adapter direction with the curren
 Source context:
 
 - Local PDF reference: `C:\Users\zablo\Desktop\ServicePlatform Projekt TDK&ProService\Vocal_Mode_adaptiv_ZT&SI\VOICE MODE ADAPTER_ZT&SI.pdf`
+- Repository canonical notes: `docs/specs/vma_uscp_canonical_notes.md`
 - Current KODEKS runtime: TDK Control Plane, DEMON / Drift Energy Monitor, FINAL_AXIS, Local Operator Stack, snapshot history, operator flow.
 
-Extraction note: the PDF exists locally, but this environment does not provide `pdftotext`, `mutool`, `qpdf`, or installed Python PDF parsers. A low-level stream inspection did not expose usable document text because the PDF is rendered through Google Docs / Skia streams. This alignment is therefore based on the VMA-USCP concepts named by the operator plus concrete repo state, and should be refined if the PDF text is later exported to Markdown or text.
+Extraction note: the PDF exists locally, but this environment does not provide `pdftotext`, `mutool`, `qpdf`, or installed Python PDF parsers. A low-level stream inspection did not expose usable document text because the PDF is rendered through Google Docs / Skia streams. This alignment can now refer to `docs/specs/vma_uscp_canonical_notes.md` as the repository-local canonical text source for VMA-USCP runtime work. If the PDF is later exported to Markdown/text, reconcile that export into the canonical notes first.
 
 ## 1. What VMA-USCP Already Has Indirectly In The Repo
 
@@ -300,4 +301,3 @@ For VMA-USCP this means:
 - VMA proposes anchors;
 - Control Plane observes VMA state;
 - operator decides whether recovery or integration proceeds.
-
