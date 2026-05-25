@@ -1,0 +1,24 @@
+{
+  "schema_version": "1.0.0",
+  "session_id": "vma-real-session-template",
+  "started_at": null,
+  "ended_at": null,
+  "turns": [
+    {
+      "event_type": "turn",
+      "user_input": "VOICE MODE: describe the architecture hierarchy\n- Control Plane observes\n- VMA preserves continuity\n- Operator decides",
+      "assistant_output": "VOICE-STABLE: hierarchy preserved; anchors available.",
+      "visual_reentry_required": false,
+      "notes": "Example manual transcript turn."
+    },
+    {
+      "event_type": "interruption",
+      "user_input": "Interruption: pause and return later.",
+      "assistant_output": "Holding last stable anchor.",
+      "visual_reentry_required": false,
+      "notes": "At least one interruption or recovery event is required."
+    }
+  ],
+  "notes": "Template only. Do not place sensitive data here."
+}
+

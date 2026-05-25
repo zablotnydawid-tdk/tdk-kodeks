@@ -25,6 +25,8 @@ data/reports/*.pdf
 data/reports/*.txt
 data/vma/*.json
 data/vma/*.md
+data/vma/sessions/*.json
+data/vma/sessions/*.md
 state/control_plane_status.json
 state/history/*.json
 docs/local-audits/*.md
