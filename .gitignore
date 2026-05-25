@@ -23,6 +23,8 @@ data/sessions/*.json
 data/orders/*.json
 data/reports/*.pdf
 data/reports/*.txt
+state/control_plane_status.json
+state/history/*.json
 docs/local-audits/*.md
 !docs/local-audits/local_runtime_audit.md
 !docs/local-audits/local_stack_status_latest.md
