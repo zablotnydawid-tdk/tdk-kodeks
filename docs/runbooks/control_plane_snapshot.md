@@ -17,6 +17,15 @@ state\control_plane_status.json
 
 The generator performs deterministic local checks only. It reads the repository, module paths, runtime markers, Git state, and Python/Node availability indicators. It does not start services and does not run live monitoring.
 
+LIVE CASE LOOP is included as a read-only component named `live_case_loop`. The generator checks only for:
+
+- `app/live_ops/live_case_loop.py`
+- `scripts/live_case_demo.ps1`
+- `sample_data/live_case_input.json`
+- `docs/runbooks/live_case_demo.md`
+
+It does not run `scripts/live_case_demo.ps1`, because that command writes runtime outputs. If the proof files are present, the component is `active`. If the latest `data/live_ops/live_case_result.json` is missing, the component stays active but reports `drift_level: low` and keeps the next action as `run scripts/live_case_demo.ps1 before field handoff`.
+
 ## 2. Validate Snapshot
 
 ```powershell

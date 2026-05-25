@@ -252,6 +252,16 @@ try {
         (Join-Path $Root "scripts\monitor_local_house.ps1"),
         (Join-Path $Root "docs\runbooks\local-operator-flow.md")
     )
+    $liveCaseRequiredPaths = @(
+        (Join-Path $Root "app\live_ops\live_case_loop.py"),
+        (Join-Path $Root "scripts\live_case_demo.ps1"),
+        (Join-Path $Root "sample_data\live_case_input.json"),
+        (Join-Path $Root "docs\runbooks\live_case_demo.md")
+    )
+    $liveCaseMissing = @($liveCaseRequiredPaths | Where-Object { -not (Test-Path $_) })
+    $liveCasePresent = $liveCaseMissing.Count -eq 0
+    $liveCaseLastResult = Join-Path $Root "data\live_ops\live_case_result.json"
+    $liveCaseLastResultPresent = Test-Path $liveCaseLastResult
     $workflowPresent = Test-AnyPath @(
         (Join-Path $Root "app\engine\process_engine.py"),
         (Join-Path $Root "app\output\report_builder.py")
@@ -310,6 +320,19 @@ try {
         }
         else {
             New-ComponentStatus "Local Operator Stack" "error" $checkedAt "scripts/*local*" "Local operator scripts are missing." "high" "restore Local Operator Stack"
+        }
+
+        live_case_loop = if ($liveCasePresent) {
+            $note = if ($liveCaseLastResultPresent) { "LIVE CASE LOOP proof files are present; last demo result exists at data\live_ops\live_case_result.json." } else { "LIVE CASE LOOP proof files are present; no last demo runtime result found." }
+            $drift = if ($liveCaseLastResultPresent) { "none" } else { "low" }
+            New-ComponentStatus "LIVE CASE LOOP" "active" $checkedAt "app/live_ops/live_case_loop.py; scripts/live_case_demo.ps1" $note $drift "run scripts/live_case_demo.ps1 before field handoff"
+        }
+        else {
+            $missingNames = @($liveCaseMissing | ForEach-Object { Resolve-Path -Path $_ -Relative -ErrorAction SilentlyContinue })
+            if (-not $missingNames) {
+                $missingNames = @($liveCaseMissing)
+            }
+            New-ComponentStatus "LIVE CASE LOOP" "warning" $checkedAt "app/live_ops/live_case_loop.py; scripts/live_case_demo.ps1; sample_data/live_case_input.json; docs/runbooks/live_case_demo.md" "Missing required proof asset(s): $($missingNames -join ', ')" "medium" "restore LIVE CASE LOOP proof files"
         }
 
         proservice_workflow = if ($workflowPresent) {

@@ -50,6 +50,7 @@
         "anchor_git",
         "master_system_sync",
         "local_operator_stack",
+        "live_case_loop",
         "proservice_workflow",
         "retina_dashboard",
         "github_sync",
@@ -69,6 +70,9 @@
           "$ref": "#/$defs/component_status"
         },
         "local_operator_stack": {
+          "$ref": "#/$defs/component_status"
+        },
+        "live_case_loop": {
           "$ref": "#/$defs/component_status"
         },
         "proservice_workflow": {
@@ -195,6 +199,15 @@
           "notes": "Start, stop, monitor, backup, recovery and audit scripts exist.",
           "drift_level": "low",
           "next_action": "run local operator audit before deploy"
+        },
+        "live_case_loop": {
+          "name": "LIVE CASE LOOP",
+          "status": "active",
+          "last_checked": "2026-05-24T18:30:00Z",
+          "source": "app/live_ops/live_case_loop.py",
+          "notes": "Isolated runtime proof is present; last demo result is checked read-only.",
+          "drift_level": "low",
+          "next_action": "run scripts/live_case_demo.ps1 before field handoff"
         },
         "proservice_workflow": {
           "name": "ProService / TDK Workflow",

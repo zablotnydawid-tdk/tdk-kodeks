@@ -87,7 +87,7 @@ function Write-OperatorActionsSection {
     }
 
     Write-Host ""
-    Write-Host "[7. OPERATOR ACTIONS]" -ForegroundColor Cyan
+    Write-Host "[8. OPERATOR ACTIONS]" -ForegroundColor Cyan
     Write-Host ("available actions: {0}" -f ($actions -join ", "))
     Write-Host ("last verification status: {0}" -f $verificationStatus) -ForegroundColor $verificationColor
     Write-Host "run: .\scripts\control_plane_actions.ps1 -Action <action>"
@@ -155,6 +155,7 @@ $allComponents = @(
     $components.github_sync,
     $components.master_system_sync,
     $components.local_operator_stack,
+    $components.live_case_loop,
     $components.proservice_workflow,
     $components.retina_dashboard,
     $components.windows_environment
@@ -193,7 +194,11 @@ Write-Section "5. RETINA / UX" @(
     (Get-ComponentRow $components "retina_dashboard")
 )
 
-Write-Section "6. ENVIRONMENT" @(
+Write-Section "6. LIVE OPS" @(
+    (Get-ComponentRow $components "live_case_loop")
+)
+
+Write-Section "7. ENVIRONMENT" @(
     (Get-ComponentRow $components "windows_environment")
 )
 
