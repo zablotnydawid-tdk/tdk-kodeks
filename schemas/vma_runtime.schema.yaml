@@ -1,0 +1,57 @@
+system:
+  name: VMA_RUNTIME
+  codename: VMA_USCP_CONTINUITY_PROOF
+  version: 0.1.0
+  mode: isolated_runtime_mvp
+
+scope:
+  includes:
+    - detect_structure
+    - map_topology
+    - inject_anchors
+    - estimate_cognitive_load
+    - recover
+    - process_turn
+  excludes:
+    - ui
+    - dashboard
+    - cloud
+    - saas
+    - existing_module_refactor
+
+runtime_state:
+  active: boolean
+  mode: string
+  current_topic: string
+  current_layer: string
+  parent_context: string
+  active_objective: string
+  known_hierarchy: array
+  dependency_chain: array
+  compression_level: string
+  cognitive_load: number
+  last_stable_anchor: string
+  recovery_required: boolean
+
+pipeline:
+  - detect_structure
+  - map_topology
+  - inject_anchors
+  - estimate_cognitive_load
+  - recover_if_required
+  - process_turn
+
+outputs:
+  voice_stable_output: string
+  state: object
+  structure: object
+  topology: object
+  anchors: object
+  telemetry: object
+
+safety:
+  autonomous_decisions: false
+  auto_remediation: false
+  external_side_effects: false
+  operator_authority_required: true
+

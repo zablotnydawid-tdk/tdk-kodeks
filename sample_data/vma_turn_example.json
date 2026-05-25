@@ -1,0 +1,9 @@
+{
+  "turn_id": "vma-turn-001",
+  "mode": "voice",
+  "topic": "VMA Runtime MVP",
+  "layer": "runtime",
+  "parent_context": "TDK Control Plane alignment",
+  "objective": "prove continuity runtime without UI",
+  "text": "VOICE MODE: VMA Runtime MVP\nCel: prove continuity runtime without UI\n- detect structure\n- map topology\n- inject anchors\n- estimate cognitive load\n- recover when continuity gap appears\nflow: detect -> map -> anchor -> recover -> output"
+}
