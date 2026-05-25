@@ -1,0 +1,26 @@
+{
+  "case_id": "LIVE-CASE-LOCAL-001",
+  "classification": {
+    "case_domain": "live_energy_operations",
+    "categories": [
+      "pv",
+      "ems_bess",
+      "economics",
+      "electrical_safety"
+    ],
+    "confidence": 0.95,
+    "operator_decision_required": true,
+    "primary_type": "pv"
+  },
+  "priority": {
+    "autonomous_action_allowed": false,
+    "level": "critical",
+    "operator_override_supported": true,
+    "reasons": [
+      "phase imbalance above critical local threshold",
+      "reported economic loss exceeds high threshold"
+    ]
+  },
+  "summary": "Example expected result shape. Generated timestamps and memory fields are runtime-specific."
+}
+

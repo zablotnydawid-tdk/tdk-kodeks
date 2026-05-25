@@ -1,0 +1,67 @@
+name: LIVE_CASE_LOOP
+version: 0.1.0
+status: isolated_runtime_proof
+description: >
+  Minimal local LIVE CASE LOOP contract. This schema describes the expected
+  input and output shape for a read-only, operator-gated runtime proof.
+
+input:
+  required:
+    - case_id
+    - title
+    - description
+  optional:
+    - received_at
+    - source
+    - operator_id
+    - customer_context
+    - assets
+    - measurements
+    - reported_symptoms
+    - requested_outcome
+
+flow:
+  - intake
+  - classify_case
+  - detect_priority
+  - generate_diagnostic_summary
+  - generate_recommendation
+  - memory_update
+  - executive_summary
+
+output:
+  required:
+    - case_id
+    - generated_at
+    - intake
+    - classification
+    - priority
+    - diagnostic_summary
+    - recommendation
+    - memory
+    - executive_summary
+    - governance
+
+priority_levels:
+  - low
+  - normal
+  - high
+  - critical
+
+governance:
+  control_plane_observes: true
+  demon_scores_later: true
+  vma_continuity_later: true
+  operator_decides: true
+  ui_enabled: false
+  cloud_enabled: false
+  saas_enabled: false
+  tdk_frontend_backend_integrated: false
+
+constraints:
+  no_ui: true
+  no_saas: true
+  no_cloud: true
+  no_autonomous_action: true
+  no_tdk_frontend_backend_integration: true
+

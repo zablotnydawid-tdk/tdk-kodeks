@@ -1,0 +1,30 @@
+{
+  "case_id": "LIVE-CASE-LOCAL-001",
+  "received_at": "2026-05-25T08:00:00Z",
+  "source": "manual_operator_input",
+  "operator_id": "local-operator",
+  "title": "PV surplus with EMS grid charging conflict",
+  "description": "Customer reports high energy cost, PV surplus, and battery charging from grid during daytime. There is also visible phase imbalance on one phase.",
+  "customer_context": "Residential PV plus battery site prepared for operator diagnostic review.",
+  "assets": [
+    "invoice_snapshot",
+    "inverter_export_csv"
+  ],
+  "measurements": {
+    "pv_production_kwh": 4321,
+    "grid_import_kwh": 820,
+    "grid_export_kwh": 1200,
+    "battery_soc": 72,
+    "phase_imbalance_percent": 28,
+    "economic_loss_pln": 360,
+    "runtime_entropy": 0.18,
+    "tariff": "G12"
+  },
+  "reported_symptoms": [
+    "battery charging from grid while PV surplus is active",
+    "unexpected high bill",
+    "phase imbalance warning"
+  ],
+  "requested_outcome": "operator-ready diagnostic summary and next actions"
+}
+

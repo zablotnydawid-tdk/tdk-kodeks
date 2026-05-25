@@ -27,6 +27,8 @@ data/vma/*.json
 data/vma/*.md
 data/vma/sessions/*.json
 data/vma/sessions/*.md
+data/live_ops/*.json
+data/live_ops/*.md
 state/control_plane_status.json
 state/history/*.json
 docs/local-audits/*.md
