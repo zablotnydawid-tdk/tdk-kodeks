@@ -53,6 +53,45 @@ function Write-Section {
     }
 }
 
+function Write-OperatorActionsSection {
+    param(
+        [string]$Root,
+        [string]$SnapshotPath
+    )
+
+    $actions = @(
+        "repo_sync_check",
+        "workspace_clean_check",
+        "python_env_check",
+        "node_env_check",
+        "history_cleanup_preview",
+        "control_plane_verify"
+    )
+
+    $validateScript = Join-Path $Root "scripts\validate_control_plane_snapshot.ps1"
+    $verificationStatus = "validator missing"
+    $verificationColor = "Yellow"
+
+    if (Test-Path $validateScript) {
+        $validationLines = & $validateScript -Root $Root -SnapshotPath $SnapshotPath 6>&1 2>&1
+        $validationOutput = ($validationLines | Out-String).Trim()
+        if ($LASTEXITCODE -eq 0) {
+            $verificationStatus = $validationOutput
+            $verificationColor = "Green"
+        }
+        else {
+            $verificationStatus = "validation-failed: $validationOutput"
+            $verificationColor = "Red"
+        }
+    }
+
+    Write-Host ""
+    Write-Host "[7. OPERATOR ACTIONS]" -ForegroundColor Cyan
+    Write-Host ("available actions: {0}" -f ($actions -join ", "))
+    Write-Host ("last verification status: {0}" -f $verificationStatus) -ForegroundColor $verificationColor
+    Write-Host "run: .\scripts\control_plane_actions.ps1 -Action <action>"
+}
+
 function Get-ComponentRow {
     param(
         [object]$Components,
@@ -156,6 +195,8 @@ Write-Section "5. RETINA / UX" @(
 Write-Section "6. ENVIRONMENT" @(
     (Get-ComponentRow $components "windows_environment")
 )
+
+Write-OperatorActionsSection -Root $Root -SnapshotPath $SnapshotPath
 
 Write-Host ""
 Write-Host "----------------------------------------------"
