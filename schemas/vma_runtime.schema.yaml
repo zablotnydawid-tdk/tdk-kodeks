@@ -30,6 +30,12 @@ runtime_state:
   dependency_chain: array
   compression_level: string
   cognitive_load: number
+  continuity_score: number
+  topology_retention_score: number
+  recovery_efficiency: number
+  hierarchy_stability: number
+  visual_reentry_required: boolean
+  recursive_stability: string
   last_stable_anchor: string
   recovery_required: boolean
 
@@ -48,10 +54,21 @@ outputs:
   topology: object
   anchors: object
   telemetry: object
+  continuity_report_json: object
+  continuity_summary_markdown: string
+  continuity_state_update: object
+
+benchmark:
+  name: FIRST_REAL_CONTINUITY_WIN
+  minimum_duration_minutes: 5
+  criteria:
+    topology_retention_score_min: 0.80
+    recovery_efficiency_min: 0.70
+    recursive_stability: stable
+    visual_reentry_required: false
 
 safety:
   autonomous_decisions: false
   auto_remediation: false
   external_side_effects: false
   operator_authority_required: true
-

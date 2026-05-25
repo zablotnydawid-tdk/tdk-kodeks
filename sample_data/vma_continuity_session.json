@@ -1,0 +1,61 @@
+{
+  "session_id": "FIRST_REAL_CONTINUITY_WIN_SAMPLE",
+  "duration_minutes": 5,
+  "expected_hierarchy": [
+    "Control Plane observes state",
+    "DEMON scores drift",
+    "VMA preserves voice continuity",
+    "Operator reviews anchors",
+    "Runtime emits continuity proof"
+  ],
+  "expected_dependency_chain": [
+    "node_1->node_2",
+    "node_2->node_3",
+    "node_3->node_4",
+    "node_4->node_5"
+  ],
+  "turns": [
+    {
+      "turn_id": "turn-001",
+      "event_type": "architecture",
+      "mode": "voice",
+      "topic": "FIRST_REAL_CONTINUITY_WIN",
+      "layer": "runtime",
+      "parent_context": "VMA-USCP benchmark",
+      "objective": "preserve architecture hierarchy through interruption",
+      "text": "VOICE MODE: FIRST_REAL_CONTINUITY_WIN\nCel: preserve architecture hierarchy through interruption\n- Control Plane observes state\n- DEMON scores drift\n- VMA preserves voice continuity\n- Operator reviews anchors\n- Runtime emits continuity proof\nflow: observe -> score -> preserve -> review -> proof"
+    },
+    {
+      "turn_id": "turn-002",
+      "event_type": "interruption",
+      "mode": "voice",
+      "topic": "interruption",
+      "layer": "runtime",
+      "parent_context": "VMA-USCP benchmark",
+      "objective": "hold last stable anchor during interruption",
+      "text": "VOICE MODE: interruption event. Hold last stable anchor and do not collapse the hierarchy."
+    },
+    {
+      "turn_id": "turn-003",
+      "event_type": "recovery_attempt",
+      "mode": "voice",
+      "topic": "recovery attempt",
+      "layer": "runtime",
+      "parent_context": "VMA-USCP benchmark",
+      "objective": "recover from interruption using anchors",
+      "text": "VOICE MODE: recovery attempt from last stable anchor. Re-enter through Control Plane, DEMON, VMA, Operator, Runtime proof."
+    },
+    {
+      "turn_id": "turn-004",
+      "event_type": "continuation",
+      "mode": "voice",
+      "topic": "FIRST_REAL_CONTINUITY_WIN",
+      "layer": "runtime",
+      "parent_context": "VMA-USCP benchmark",
+      "objective": "continue after drift without collapse",
+      "visual_reentry_required": false,
+      "text": "VOICE MODE: continue after drift\nCel: continue after drift without collapse\n- Control Plane observes state\n- DEMON scores drift\n- VMA preserves voice continuity\n- Operator reviews anchors\n- Runtime emits continuity proof\nflow: observe -> score -> preserve -> review -> proof"
+    }
+  ]
+}
+
