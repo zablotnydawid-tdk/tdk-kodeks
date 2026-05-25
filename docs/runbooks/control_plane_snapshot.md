@@ -42,6 +42,8 @@ cd C:\KODEKS
 This renders a read-only terminal view from `state\control_plane_status.json`.
 It does not refresh live, does not launch a GUI, and does not execute actions.
 
+Overall state treats planned components explicitly. If the only `unknown` component is `retina_dashboard`, and it is unknown because the full dashboard is only blueprinted as a read-only preview layer, Retina Lite still shows that component as `unknown` in the table but reports overall state as `active-with-planned-components`. This means there is no system problem; there is only a planned UI component that has not been implemented yet.
+
 ## 4. When To Use
 
 Use this before building or running any Control Plane UI layer:

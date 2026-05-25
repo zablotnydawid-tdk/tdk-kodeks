@@ -13,6 +13,8 @@ function Get-StatusColor {
     param([string]$Status)
     switch ($Status) {
         "active" { return "Green" }
+        "active-with-planned-components" { return "Green" }
+        "warning-free-planned" { return "Green" }
         "warning" { return "Yellow" }
         "error" { return "Red" }
         "unknown" { return "DarkGray" }
@@ -64,7 +66,10 @@ function Get-ComponentRow {
 }
 
 function Get-OverallState {
-    param([object[]]$Components)
+    param(
+        [object[]]$Components,
+        [object]$RetinaDashboard
+    )
 
     $statuses = @($Components | ForEach-Object { $_.status })
     if ($statuses -contains "error") {
@@ -74,6 +79,15 @@ function Get-OverallState {
         return "warning"
     }
     if ($statuses -contains "unknown") {
+        $unknownComponents = @($Components | Where-Object { $_.status -eq "unknown" })
+        if (
+            $unknownComponents.Count -eq 1 -and
+            $null -ne $RetinaDashboard -and
+            $unknownComponents[0] -eq $RetinaDashboard -and
+            $RetinaDashboard.notes -like "*blueprinted as read-only preview*"
+        ) {
+            return "active-with-planned-components"
+        }
         return "unknown"
     }
     return "active"
@@ -108,7 +122,7 @@ $allComponents = @(
 
 $warningCount = @($allComponents | Where-Object { $_.status -eq "warning" }).Count
 $errorCount = @($allComponents | Where-Object { $_.status -eq "error" }).Count
-$overall = Get-OverallState -Components $allComponents
+$overall = Get-OverallState -Components $allComponents -RetinaDashboard $components.retina_dashboard
 $overallColor = Get-StatusColor $overall
 
 Write-Header
