@@ -22,7 +22,7 @@ from app.vma.session_recorder import (  # noqa: E402
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="VMA real user session recorder")
-    parser.add_argument("action", choices=("start", "add", "finalize"))
+    parser.add_argument("action", choices=("help", "start", "add", "finalize"))
     parser.add_argument("--root", default=str(ROOT))
     parser.add_argument("--session-path", default="")
     parser.add_argument("--user-input", default="")
@@ -37,6 +37,20 @@ def build_parser() -> argparse.ArgumentParser:
 
 def run(args: argparse.Namespace) -> dict:
     root = Path(args.root)
+
+    if args.action == "help":
+        return {
+            "status": "help",
+            "actions": ["start", "add", "finalize"],
+            "required_add_parameters": ["--session-path", "--user-input or --assistant-output"],
+            "examples": [
+                "scripts/vma_record_session.ps1 -Action start",
+                "scripts/vma_record_session.ps1 -Action add -SessionPath <path> -UserInput <text> -AssistantOutput <text>",
+                "scripts/vma_record_session.ps1 -Action add -SessionPath <path> -EventType interruption -UserInput <text> -AssistantOutput <text>",
+                "scripts/vma_record_session.ps1 -Action finalize -SessionPath <path>",
+            ],
+        }
+
     session_dir = root / "data" / "vma" / "sessions"
     session_dir.mkdir(parents=True, exist_ok=True)
 
@@ -110,4 +124,3 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-

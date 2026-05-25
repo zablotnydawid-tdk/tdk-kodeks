@@ -1,5 +1,5 @@
 param(
-    [ValidateSet("start", "add", "finalize")]
+    [ValidateSet("help", "start", "add", "finalize")]
     [string]$Action = "start",
     [string]$Root = "C:\KODEKS",
     [string]$SessionPath = "",
@@ -122,6 +122,21 @@ try {
     Write-Host ""
     Write-Host "TDK VMA REAL USER SESSION" -ForegroundColor Cyan
     Write-Host ("status: {0}" -f $result.status)
+
+    if ($result.status -eq "help") {
+        Write-Host ""
+        Write-Host "actions:" -ForegroundColor Cyan
+        $result.actions | ForEach-Object { Write-Host ("- {0}" -f $_) }
+        Write-Host ""
+        Write-Host "required parameters for add:" -ForegroundColor Cyan
+        $result.required_add_parameters | ForEach-Object { Write-Host ("- {0}" -f $_) }
+        Write-Host ""
+        Write-Host "examples:" -ForegroundColor Cyan
+        $result.examples | ForEach-Object { Write-Host ("- {0}" -f $_) }
+        Write-Host ""
+        exit 0
+    }
+
     Write-Host ("session_path: {0}" -f $result.session_path)
     if ($result.PSObject.Properties.Name -contains "turns") {
         Write-Host ("turns: {0}" -f $result.turns)

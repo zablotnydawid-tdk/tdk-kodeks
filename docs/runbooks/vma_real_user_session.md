@@ -16,6 +16,20 @@ The recorder is manual transcript tooling only:
 
 The operator manually types or pastes turns from a real conversation.
 
+## Help
+
+```powershell
+cd C:\KODEKS
+.\scripts\vma_record_session.ps1 -Action help
+```
+
+Help shows:
+
+- `start`
+- `add -SessionPath <path> -UserInput <text> -AssistantOutput <text>`
+- `finalize -SessionPath <path>`
+- required `add` parameters: `-SessionPath` and at least one turn text field
+
 ## Start Session
 
 ```powershell
@@ -63,4 +77,3 @@ The win is achieved when:
 ## Git Boundary
 
 Runtime outputs in `data\vma\sessions\` are ignored by Git.
-
