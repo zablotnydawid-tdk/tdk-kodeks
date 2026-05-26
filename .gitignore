@@ -27,6 +27,7 @@ data/vma/*.json
 data/vma/*.md
 data/vma/sessions/*.json
 data/vma/sessions/*.md
+data/acpc/
 data/live_ops/*.json
 data/live_ops/*.md
 state/control_plane_status.json
