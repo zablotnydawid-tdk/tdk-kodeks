@@ -90,6 +90,47 @@ function New-ComponentStatus {
     }
 }
 
+function Get-AcpcReadOnlyStatus {
+    param(
+        [string]$Name,
+        [string]$SourcePath,
+        [string]$TestPath,
+        [string]$SourceLabel,
+        [string]$TestLabel,
+        [string]$CheckedAt,
+        [string]$InventoryPath
+    )
+
+    $sourcePresent = Test-Path $SourcePath
+    $testsPresent = Test-Path $TestPath
+    $lastTest = "last test result unavailable"
+
+    if (Test-Path $InventoryPath) {
+        try {
+            $inventoryText = Get-Content -Raw -Path $InventoryPath
+            if ($inventoryText -like "*PASS: 12 passed, 0 failed, 0 skipped*") {
+                $lastTest = "ACPC fallback test result recorded: PASS: 12 passed, 0 failed, 0 skipped"
+            }
+        }
+        catch {
+            $lastTest = "last test result unreadable"
+        }
+    }
+
+    if ($sourcePresent -and $testsPresent) {
+        return New-ComponentStatus $Name "active" $CheckedAt "$SourceLabel; $TestLabel" "Read-only ACPC module and tests are present. $lastTest." "none" "none"
+    }
+
+    $missing = @()
+    if (-not $sourcePresent) {
+        $missing += $SourceLabel
+    }
+    if (-not $testsPresent) {
+        $missing += $TestLabel
+    }
+    return New-ComponentStatus $Name "warning" $CheckedAt "$SourceLabel; $TestLabel" "Missing ACPC asset(s): $($missing -join ', '). $lastTest." "medium" "restore ACPC source/tests or rerun selective merge"
+}
+
 function Get-GitSnapshot {
     param([string]$Workspace)
 
@@ -266,6 +307,13 @@ try {
         (Join-Path $Root "app\engine\process_engine.py"),
         (Join-Path $Root "app\output\report_builder.py")
     )
+    $acpcInventoryPath = Join-Path $Root "docs\architecture\acpc_zip_inventory_compare.md"
+    $acpcRuntimePath = Join-Path $Root "src\acpc\runtime"
+    $acpcRuntimeTestsPath = Join-Path $Root "tests\runtime"
+    $acpcIngestPath = Join-Path $Root "src\acpc\ingest"
+    $acpcIngestTestsPath = Join-Path $Root "tests\ingest"
+    $acpcPvDiagnosticsPath = Join-Path $Root "src\acpc\energy\pv_diagnostics"
+    $acpcPvDiagnosticsTestsPath = Join-Path $Root "tests\energy"
     $blueprintPresent = Test-Path (Join-Path $Root "docs\blueprints\tdk_control_plane_ux.md")
     $masterMapPresent = Test-Path "C:\TDK_SYSTEM\FULL_SYSTEM_MAP.txt"
 
@@ -341,6 +389,12 @@ try {
         else {
             New-ComponentStatus "ProService / TDK Workflow" "error" $checkedAt "app/engine/process_engine.py" "Process workflow files are missing." "high" "restore process workflow modules"
         }
+
+        acpc_runtime = Get-AcpcReadOnlyStatus "ACPC Runtime" $acpcRuntimePath $acpcRuntimeTestsPath "src/acpc/runtime" "tests/runtime" $checkedAt $acpcInventoryPath
+
+        acpc_ingest_gateway = Get-AcpcReadOnlyStatus "ACPC Live Ingest Gateway" $acpcIngestPath $acpcIngestTestsPath "src/acpc/ingest" "tests/ingest" $checkedAt $acpcInventoryPath
+
+        acpc_pv_diagnostics = Get-AcpcReadOnlyStatus "ACPC PV Diagnostics" $acpcPvDiagnosticsPath $acpcPvDiagnosticsTestsPath "src/acpc/energy/pv_diagnostics" "tests/energy" $checkedAt $acpcInventoryPath
 
         retina_dashboard = if ($blueprintPresent) {
             New-ComponentStatus "Retina Preview Layer" "unknown" $checkedAt "docs/blueprints/tdk_control_plane_ux.md" "Retina layer is blueprinted as read-only preview; dashboard not implemented." "none" "implement read-only preview after status contract stabilizes"

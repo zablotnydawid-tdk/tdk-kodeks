@@ -52,6 +52,9 @@
         "local_operator_stack",
         "live_case_loop",
         "proservice_workflow",
+        "acpc_runtime",
+        "acpc_ingest_gateway",
+        "acpc_pv_diagnostics",
         "retina_dashboard",
         "github_sync",
         "windows_environment"
@@ -76,6 +79,15 @@
           "$ref": "#/$defs/component_status"
         },
         "proservice_workflow": {
+          "$ref": "#/$defs/component_status"
+        },
+        "acpc_runtime": {
+          "$ref": "#/$defs/component_status"
+        },
+        "acpc_ingest_gateway": {
+          "$ref": "#/$defs/component_status"
+        },
+        "acpc_pv_diagnostics": {
           "$ref": "#/$defs/component_status"
         },
         "retina_dashboard": {
