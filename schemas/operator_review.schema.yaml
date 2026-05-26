@@ -1,0 +1,75 @@
+name: OPERATOR_REVIEW_LAYER
+version: 0.1.0
+status: closed_case_runtime_proof
+description: >
+  Minimal local operator review contract. This schema describes the final
+  human decision layer after live ingest, diagnostics, governance, and Live
+  Case Loop output.
+
+input:
+  required:
+    - live_case
+    - operator_review
+  live_case:
+    required:
+      - case_id
+      - recommendation
+      - priority
+      - diagnostic_summary
+  operator_review:
+    required:
+      - operator_id
+      - operator_notes
+    optional:
+      - approve_recommendation
+      - reject_recommendation
+      - request_field_visit
+      - request_thermal_inspection
+      - escalation_required
+      - safe_to_monitor
+      - final_decision
+
+flow:
+  - live_ingest
+  - diagnostics
+  - governance
+  - operator_review
+  - final_decision
+  - final_report
+  - case_closed
+
+output:
+  required:
+    - review_id
+    - case_id
+    - generated_at
+    - operator_id
+    - safe_mode
+    - final_decision
+    - case_closed
+    - operator_acceptance_state
+    - autonomous_action
+    - decision_trace
+    - final_governance_summary
+    - report_generation
+
+final_decisions:
+  - APPROVED
+  - REJECTED
+  - FIELD_VISIT_REQUIRED
+  - THERMAL_INSPECTION_REQUIRED
+  - ESCALATED
+  - SAFE_TO_MONITOR
+  - UNKNOWN
+
+constraints:
+  operator_always_decides: true
+  autonomous_action: false
+  local_first: true
+  terminal_first: true
+  no_web_ui: true
+  no_auth: true
+  no_cloud_runtime: true
+  no_saas: true
+  unknown_instead_of_guessing: true
+  safe_mode_when_missing_data: true

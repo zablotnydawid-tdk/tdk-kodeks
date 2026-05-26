@@ -1,0 +1,67 @@
+{
+  "live_case": {
+    "case_id": "ACPC-LIVE-INGEST-001",
+    "classification": {
+      "case_domain": "live_energy_operations",
+      "categories": [
+        "pv",
+        "ai_governance"
+      ],
+      "confidence": 0.85,
+      "operator_decision_required": true,
+      "primary_type": "pv"
+    },
+    "diagnostic_summary": {
+      "evidence_gaps": [],
+      "findings": [
+        "PV / inverter context is present and should be checked against yield and EMS behavior.",
+        "AI governance context is present; require trace review before accepting recommendations."
+      ],
+      "summary": "pv case with high priority.",
+      "traceability": "all findings derived from local input only"
+    },
+    "generated_at": "2026-05-26T00:26:18.298768+00:00",
+    "intake": {
+      "case_id": "ACPC-LIVE-INGEST-001",
+      "operator_id": "local-operator",
+      "source": "acpc_live_ingest_gateway",
+      "title": "ACPC live PV diagnostic ingest: yield drop, PID and hotspot risk"
+    },
+    "priority": {
+      "autonomous_action_allowed": false,
+      "level": "high",
+      "operator_override_supported": true,
+      "reasons": [
+        "reported economic loss exceeds high threshold"
+      ]
+    },
+    "recommendation": {
+      "blocked_actions": [
+        "no autonomous remediation",
+        "no EMS/PV/BESS command execution",
+        "no cloud sync",
+        "no frontend/backend integration in this proof"
+      ],
+      "customer_safe_message": "Case requires operator review before field recommendation.",
+      "decision_owner": "operator",
+      "operator_next_actions": [
+        "operator reviews intake and diagnostic summary",
+        "hold any field action until operator confirms risk boundary",
+        "collect inverter yield, grid import/export, and EMS charge logs",
+        "preserve decision trace and require manual acceptance"
+      ]
+    }
+  },
+  "operator_review": {
+    "review_id": "ACPC-LIVE-INGEST-001:operator-review",
+    "operator_id": "local-operator",
+    "approve_recommendation": true,
+    "reject_recommendation": false,
+    "request_field_visit": false,
+    "request_thermal_inspection": false,
+    "escalation_required": false,
+    "safe_to_monitor": false,
+    "operator_notes": "Recommendation accepted for report closure. No autonomous action approved. Preserve trace and monitor next measured PV cycle.",
+    "final_decision": "APPROVED"
+  }
+}

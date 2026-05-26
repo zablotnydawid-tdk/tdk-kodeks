@@ -1,0 +1,9 @@
+{
+  "case_id": "ACPC-LIVE-INGEST-001",
+  "final_decision": "APPROVED",
+  "operator_acceptance_state": "OPERATOR_ACCEPTED",
+  "autonomous_action": false,
+  "case_closed": true,
+  "safe_mode": "PASSIVE",
+  "summary": "Example expected result shape. Generated timestamps and decision trace details are runtime-specific."
+}

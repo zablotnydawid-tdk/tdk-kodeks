@@ -1,6 +1,6 @@
 param(
     [string]$Root = "C:\KODEKS",
-    [ValidateSet("none", "live_case_demo", "timeline", "operator_actions", "continuity_benchmark")]
+    [ValidateSet("none", "live_case_demo", "timeline", "operator_actions", "continuity_benchmark", "operator_review_demo")]
     [string]$Launch = "none",
     [switch]$Interactive
 )
@@ -12,6 +12,7 @@ $HistoryRoot = Join-Path $Root "state\history"
 $FinalAxisLogPath = Join-Path $Root "data\final_axis\runtime_log.jsonl"
 $ContinuityStatePath = Join-Path $Root "data\vma\vma_continuity_state.json"
 $LiveCasePath = Join-Path $Root "data\live_ops\live_case_result.json"
+$OperatorReviewPath = Join-Path $Root "data\live_ops\operator_review_result.json"
 $DriftLogPath = Join-Path $Root "data\drift_energy_monitor\runtime_log.jsonl"
 $DriftReportPath = Join-Path $Root "data\drift_energy_monitor\operational_report.md"
 $KnowledgeLayerPath = Join-Path $Root "knowledge\document_ingestor.py"
@@ -217,6 +218,10 @@ function Invoke-OptionalLaunch {
             Write-Host "launching scripts\vma_continuity_benchmark.ps1"
             & (Join-Path $Root "scripts\vma_continuity_benchmark.ps1") -Root $Root
         }
+        "operator_review_demo" {
+            Write-Host "launching scripts\operator_review_demo.ps1"
+            & (Join-Path $Root "scripts\operator_review_demo.ps1") -Root $Root
+        }
     }
 }
 
@@ -232,6 +237,7 @@ $latestHistory = Get-LatestControlPlaneHistory
 $runtimeState = Read-LatestJsonLine -Path $FinalAxisLogPath
 $continuityState = Read-JsonFile -Path $ContinuityStatePath
 $liveCase = Read-JsonFile -Path $LiveCasePath
+$operatorReview = Read-JsonFile -Path $OperatorReviewPath
 $driftState = Read-LatestJsonLine -Path $DriftLogPath -RecordType "analysis"
 $controlSummary = Get-ComponentSummary -ControlPlane $controlPlane
 
@@ -240,6 +246,7 @@ $missing += Add-MissingHint "Control Plane snapshot" $ControlPlanePath "run scri
 $missing += Add-MissingHint "Final Axis runtime log" $FinalAxisLogPath "run python scripts\run_final_axis.py"
 $missing += Add-MissingHint "VMA continuity state" $ContinuityStatePath "run scripts\vma_continuity_benchmark.ps1"
 $missing += Add-MissingHint "Live Case result" $LiveCasePath "run scripts\live_case_demo.ps1"
+$missing += Add-MissingHint "Operator Review result" $OperatorReviewPath "run scripts\operator_review_demo.ps1 after live case review input is ready"
 $missing += Add-MissingHint "DEMON runtime log" $DriftLogPath "run python scripts\run_drift_energy_monitor.py"
 $missing = @($missing | Where-Object { $null -ne $_ })
 
@@ -338,6 +345,16 @@ else {
     Write-Kv "next operator action" "UNKNOWN"
 }
 
+Write-Section "Operator Review"
+Write-Kv "operator review file" (Get-PathStatus $OperatorReviewPath) $(if (Test-Path $OperatorReviewPath) { "Green" } else { "Yellow" })
+Write-Kv "review_id" $operatorReview.review_id
+Write-Kv "case_id" $operatorReview.case_id
+Write-Kv "final decision" $operatorReview.final_decision $(if ($operatorReview.final_decision -in @("APPROVED", "SAFE_TO_MONITOR")) { "Green" } elseif ($operatorReview.final_decision -in @("REJECTED", "ESCALATED", "FIELD_VISIT_REQUIRED", "THERMAL_INSPECTION_REQUIRED")) { "Yellow" } else { "Yellow" })
+Write-Kv "case closed" $operatorReview.case_closed $(if ($operatorReview.case_closed -eq $true) { "Green" } else { "Yellow" })
+Write-Kv "acceptance state" $operatorReview.operator_acceptance_state
+Write-Kv "autonomous action" $operatorReview.autonomous_action $(if ($operatorReview.autonomous_action -eq $false) { "Green" } else { "Red" })
+Write-Kv "review safe mode" $operatorReview.safe_mode $(if ($operatorReview.safe_mode -eq "PASSIVE") { "Green" } else { "Yellow" })
+
 Write-Section "Complex Knowledge Layer"
 Write-Kv "knowledge ingestion" (Get-PathStatus $KnowledgeLayerPath) $(if (Test-Path $KnowledgeLayerPath) { "Green" } else { "Yellow" })
 Write-Kv "runbook" (Get-PathStatus $KnowledgeRunbookPath) $(if (Test-Path $KnowledgeRunbookPath) { "Green" } else { "Yellow" })
@@ -363,12 +380,13 @@ Write-Section "Optional Local Launch"
 Write-Host ".\scripts\exim_operator_entrypoint.ps1 -Launch timeline"
 Write-Host ".\scripts\exim_operator_entrypoint.ps1 -Launch operator_actions"
 Write-Host ".\scripts\exim_operator_entrypoint.ps1 -Launch live_case_demo"
+Write-Host ".\scripts\exim_operator_entrypoint.ps1 -Launch operator_review_demo"
 Write-Host ".\scripts\exim_operator_entrypoint.ps1 -Launch continuity_benchmark"
 
 if ($Interactive -and $Launch -eq "none") {
     Write-Host ""
-    $choice = Read-Host "Optional launch (none/timeline/operator_actions/live_case_demo/continuity_benchmark)"
-    if ($choice -in @("timeline", "operator_actions", "live_case_demo", "continuity_benchmark")) {
+    $choice = Read-Host "Optional launch (none/timeline/operator_actions/live_case_demo/operator_review_demo/continuity_benchmark)"
+    if ($choice -in @("timeline", "operator_actions", "live_case_demo", "operator_review_demo", "continuity_benchmark")) {
         $Launch = $choice
     }
 }
