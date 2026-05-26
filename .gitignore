@@ -23,6 +23,10 @@ data/sessions/*.json
 data/orders/*.json
 data/reports/*.pdf
 data/reports/*.txt
+data/reports/*.json
+data/reports/*.md
+data/uploads/
+data/acpc.db
 data/vma/*.json
 data/vma/*.md
 data/vma/sessions/*.json
