@@ -4,6 +4,7 @@ import sys
 from pathlib import Path
 
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -20,6 +21,17 @@ app = FastAPI(
     title="ACPC Web MVP API",
     version="0.1.0",
     description="Local-first ACPC diagnostic API foundation.",
+)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://127.0.0.1:3000",
+        "http://localhost:3000",
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 app.include_router(health.router)
