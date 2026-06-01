@@ -10,6 +10,7 @@ from urllib.parse import unquote
 from zoneinfo import ZoneInfo
 
 from dotenv import load_dotenv
+load_dotenv(r'C:\KODEKS\.env')
 from fastapi import FastAPI, Form, Request
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
@@ -56,7 +57,7 @@ ADMIN_KEY = os.getenv(
 
 PAYMENT_AMOUNT = os.getenv(
     "PAYMENT_AMOUNT",
-    "39,99 zł"
+    "149,99 zł"
 )
 
 PAYMENT_ACCOUNT_NAME = os.getenv(
@@ -82,6 +83,16 @@ PAYMENT_CONTACT_EMAIL = os.getenv(
 )
 app = FastAPI(title="KODEKS API")
 app.mount("/reports", StaticFiles(directory=str(REPORTS_DIR)), name="reports")
+
+
+@app.get("/health")
+def health_check() -> dict:
+    return {
+        "status": "ok",
+        "service": "KODEKS API",
+        "runtime": "public-intake",
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+    }
 
 
 def format_pl_time(value: str | None) -> str:
@@ -274,7 +285,7 @@ def _send_message(message: EmailMessage) -> None:
     if missing:
         raise RuntimeError("SMTP nie jest skonfigurowane: brakuje " + ", ".join(missing))
 
-    context = ssl.create_default_context()
+    context = ssl._create_unverified_context()  # TDK LOCAL FIX: nazwa.pl self-signed chain
 
     if config["port"] == 465:
         with smtplib.SMTP_SSL(
@@ -314,7 +325,7 @@ def send_email_with_pdf(to_email: str, pdf_path: str) -> tuple[bool, str]:
         "Dokument jest screeningiem techniczno-energetycznym opartym na danych wpisanych w formularzu.\n\n"
         "To nie jest pełny audyt techniczny ani opinia rzeczoznawcza.\n\n"
         "Jeśli zdecydują się Państwo na pełną diagnostykę techniczną, koszt tej analizy "
-        "w wysokości 39,99 zł zostanie odliczony od ceny pełnej usługi.\n\n"
+        "w wysokości 149,99 zł zostanie odliczony od ceny pełnej usługi.\n\n"
         "TDK&ProService\n"
         "kontakt@tdkproservice.pl\n"
     )
@@ -337,6 +348,9 @@ def send_lead_notification(
     pv_power_kw: float,
     pv_monthly_production_kwh: float,
     pdf_url: str,
+    client_name: str = "",
+    client_phone: str = "",
+    client_message: str = "",
 ) -> tuple[bool, str]:
     config = _smtp_config()
 
@@ -347,7 +361,10 @@ def send_lead_notification(
 
     message.set_content(
         "Nowy lead z formularza KODEKS.\n\n"
+        f"Imię: {client_name or 'brak'}\n"
         f"Email klienta: {client_email}\n"
+        f"Telefon: {client_phone or 'brak'}\n"
+        f"Opis problemu: {client_message or 'brak'}\n\n"
         f"Zużycie miesięczne: {consumption_kwh} kWh\n"
         f"Cena energii: {price_per_kwh} zł/kWh\n"
         f"Moc PV: {pv_power_kw} kWp\n"
@@ -647,7 +664,7 @@ def home() -> str:
 
                     <div class="price-box">
                         <h2>Wstępna ocena KODEKS</h2>
-                        <div class="price">39,99 zł</div>
+                        <div class="price">149,99 zł</div>
 
                         <div class="note">
                             Otrzymujesz PDF z podstawowym przeliczeniem kosztów, interpretacją
@@ -656,7 +673,7 @@ def home() -> str:
 
                         <div class="credit">
                             Jeśli po raporcie zdecydujesz się na pełną diagnostykę techniczną
-                            TDK&ProService, kwota <strong>39,99 zł</strong> zostanie odliczona
+                            TDK&ProService, kwota <strong>149,99 zł</strong> zostanie odliczona
                             od ceny pełnej usługi.
                         </div>
 
@@ -1159,6 +1176,9 @@ def form_analyze(
     price_per_kwh: float = Form(...),
     pv_power_kw: float = Form(...),
     pv_monthly_production_kwh: float = Form(...),
+    name: str = Form(""),
+    phone: str = Form(""),
+    message: str = Form(""),
 ) -> str:
     try:
         if pv_power_kw > 100:
@@ -1178,7 +1198,10 @@ def form_analyze(
             "order_id": order_id,
             "status": "waiting_for_payment",
             "created_at": datetime.now().isoformat(timespec="seconds"),
+            "name": name,
             "email": email,
+            "phone": phone,
+            "message": message,
             "consumption_kwh": consumption_kwh,
             "price_per_kwh": price_per_kwh,
             "pv_power_kw": pv_power_kw,
@@ -1201,6 +1224,9 @@ def form_analyze(
                 pv_power_kw=pv_power_kw,
                 pv_monthly_production_kwh=pv_monthly_production_kwh,
                 pdf_url=f"Zgłoszenie zapisane: {order_id}",
+                client_name=name,
+                client_phone=phone,
+                client_message=message,
             )
             update_order_mail_status(
                 order_id,
