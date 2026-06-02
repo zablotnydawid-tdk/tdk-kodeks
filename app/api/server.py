@@ -3,6 +3,7 @@ import json
 import os
 import smtplib
 import ssl
+import time
 import uuid
 from datetime import datetime, timezone
 from email.message import EmailMessage
@@ -42,6 +43,17 @@ ANCHORGRID_API_KEYS = {
     for key in os.getenv("ANCHORGRID_API_KEYS", "").split(",")
     if key.strip()
 }
+APP_ENV = os.getenv("ENVIRONMENT", os.getenv("APP_ENV", "public-intake")).lower()
+DOCS_ENABLED = (
+    os.getenv("ENABLE_PUBLIC_DOCS", "").lower() in {"1", "true", "yes"}
+    or APP_ENV in {"local", "dev", "development", "test"}
+)
+ANCHORGRID_RATE_LIMIT_WINDOW_SEC = int(
+    os.getenv("ANCHORGRID_RATE_LIMIT_WINDOW_SEC", "60")
+)
+ANCHORGRID_RATE_LIMIT_ANALYZE = int(os.getenv("ANCHORGRID_RATE_LIMIT_ANALYZE", "30"))
+ANCHORGRID_RATE_LIMIT_PDF = int(os.getenv("ANCHORGRID_RATE_LIMIT_PDF", "10"))
+_RATE_LIMIT_BUCKETS: dict[str, dict[str, float]] = {}
 
 order_store = FileSystemOrderStore()
 PL_TZ = ZoneInfo("Europe/Warsaw")
@@ -91,8 +103,41 @@ PAYMENT_CONTACT_EMAIL = os.getenv(
     "PAYMENT_CONTACT_EMAIL",
     "kontakt@tdkproservice.pl"
 )
-app = FastAPI(title="KODEKS API")
+app = FastAPI(
+    title="KODEKS API",
+    docs_url="/docs" if DOCS_ENABLED else None,
+    redoc_url="/redoc" if DOCS_ENABLED else None,
+    openapi_url="/openapi.json" if DOCS_ENABLED else None,
+)
 app.mount("/reports", StaticFiles(directory=str(REPORTS_DIR)), name="reports")
+
+
+@app.middleware("http")
+async def add_security_headers(request: Request, call_next):
+    response = await call_next(request)
+    response.headers.setdefault(
+        "Strict-Transport-Security",
+        "max-age=63072000; includeSubDomains; preload",
+    )
+    response.headers.setdefault("X-Content-Type-Options", "nosniff")
+    response.headers.setdefault("X-Frame-Options", "DENY")
+    response.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
+    response.headers.setdefault(
+        "Permissions-Policy",
+        "camera=(), microphone=(), geolocation=(), payment=()",
+    )
+    response.headers.setdefault(
+        "Content-Security-Policy",
+        "default-src 'self'; "
+        "img-src 'self' data: https:; "
+        "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; "
+        "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; "
+        "connect-src 'self' https://api.tdkproservice.pl https://platform.tdkproservice.pl; "
+        "frame-ancestors 'none'; "
+        "base-uri 'self'; "
+        "form-action 'self'",
+    )
+    return response
 
 
 @app.get("/health")
@@ -1147,15 +1192,55 @@ def _valid_anchorgrid_api_key(api_key: str | None) -> bool:
     return bool(key and key in ANCHORGRID_API_KEYS)
 
 
+def _trusted_client_ip(request: Request) -> str:
+    cloudflare_ip = request.headers.get("cf-connecting-ip", "").split(",")[0].strip()
+    if cloudflare_ip:
+        return cloudflare_ip
+    if request.headers.get("x-forwarded-for"):
+        return "unverified_proxy"
+    if request.client and request.client.host:
+        return request.client.host
+    return "unknown"
+
+
 def _anchorgrid_client_id(request: Request) -> str:
-    forwarded_for = request.headers.get("x-forwarded-for", "")
-    ip = forwarded_for.split(",")[0].strip()
-    if not ip and request.client:
-        ip = request.client.host
+    ip = _trusted_client_ip(request)
     user_agent = request.headers.get("user-agent", "unknown")
     raw = f"{ip or 'unknown'}|{user_agent}"
     digest = hashlib.sha256(raw.encode("utf-8")).hexdigest()[:16]
     return f"client_{digest}"
+
+
+def enforce_anchorgrid_rate_limit(
+    request: Request,
+    scope: str,
+    limit: int,
+) -> None:
+    if limit <= 0:
+        return
+
+    now = time.time()
+    client_id = _anchorgrid_client_id(request)
+    bucket_key = f"{scope}:{client_id}"
+    bucket = _RATE_LIMIT_BUCKETS.get(bucket_key)
+
+    if not bucket or now >= bucket["reset_at"]:
+        _RATE_LIMIT_BUCKETS[bucket_key] = {
+            "count": 1,
+            "reset_at": now + ANCHORGRID_RATE_LIMIT_WINDOW_SEC,
+        }
+        return
+
+    bucket["count"] += 1
+    if bucket["count"] <= limit:
+        return
+
+    retry_after = max(1, int(bucket["reset_at"] - now))
+    raise HTTPException(
+        status_code=429,
+        detail="Rate limit exceeded. Try again later.",
+        headers={"Retry-After": str(retry_after)},
+    )
 
 
 def _read_anchorgrid_usage() -> dict:
@@ -1290,6 +1375,11 @@ def anchorgrid_platform_analyze(
     data: AnchorGridPlatformRequest,
     request: Request,
 ) -> dict:
+    enforce_anchorgrid_rate_limit(
+        request,
+        "anchorgrid_analyze",
+        ANCHORGRID_RATE_LIMIT_ANALYZE,
+    )
     usage = enforce_anchorgrid_usage(request, data.api_key)
     result = analyze_bess(_anchorgrid_platform_input(data))
     payload = anchorgrid_dump(result)
@@ -1301,6 +1391,11 @@ def anchorgrid_platform_analyze_pdf(
     data: AnchorGridPlatformRequest,
     request: Request,
 ) -> Response:
+    enforce_anchorgrid_rate_limit(
+        request,
+        "anchorgrid_analyze_pdf",
+        ANCHORGRID_RATE_LIMIT_PDF,
+    )
     usage = enforce_anchorgrid_usage(request, data.api_key)
     result = analyze_bess(_anchorgrid_platform_input(data))
     payload = anchorgrid_dump(result)
