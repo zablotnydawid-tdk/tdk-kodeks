@@ -19,6 +19,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from app.anchorgrid.engine import analyze_bess
+from app.anchorgrid.pdf_builder import build_anchorgrid_pdf
 from app.anchorgrid.schemas import BessInput
 from app.engine.process_engine import run_process
 from app.input.normalizer import normalize_input
@@ -1303,12 +1304,17 @@ def anchorgrid_platform_analyze_pdf(
     usage = enforce_anchorgrid_usage(request, data.api_key)
     result = analyze_bess(_anchorgrid_platform_input(data))
     payload = anchorgrid_dump(result)
-    report_text = _anchorgrid_platform_report_text(payload, usage)
+    request_id = uuid.uuid4().hex
 
-    unique_id = uuid.uuid4().hex[:8]
+    unique_id = request_id[:8]
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     pdf_path = REPORTS_DIR / f"anchorgrid_{timestamp}_{unique_id}.pdf"
-    generate_pdf(report_text, str(pdf_path))
+    build_anchorgrid_pdf(
+        payload,
+        usage,
+        str(pdf_path),
+        request_id=request_id,
+    )
 
     return Response(
         content=pdf_path.read_bytes(),
