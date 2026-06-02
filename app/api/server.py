@@ -1,3 +1,5 @@
+import hashlib
+import json
 import os
 import smtplib
 import ssl
@@ -11,8 +13,8 @@ from zoneinfo import ZoneInfo
 
 from dotenv import load_dotenv
 load_dotenv(r'C:\KODEKS\.env')
-from fastapi import FastAPI, Form, Request
-from fastapi.responses import HTMLResponse
+from fastapi import FastAPI, Form, HTTPException, Request
+from fastapi.responses import HTMLResponse, Response
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
@@ -32,6 +34,13 @@ REPORTS_DIR = Path("data") / "reports"
 REPORTS_DIR.mkdir(parents=True, exist_ok=True)
 MAIL_LOG_PATH = Path("data") / "logs" / "mail_failures.log"
 MAIL_LOG_PATH.parent.mkdir(parents=True, exist_ok=True)
+ANCHORGRID_USAGE_PATH = Path("data") / "anchorgrid_usage.json"
+ANCHORGRID_FREE_LIMIT = int(os.getenv("ANCHORGRID_FREE_LIMIT", "10"))
+ANCHORGRID_API_KEYS = {
+    key.strip()
+    for key in os.getenv("ANCHORGRID_API_KEYS", "").split(",")
+    if key.strip()
+}
 
 order_store = FileSystemOrderStore()
 PL_TZ = ZoneInfo("Europe/Warsaw")
@@ -95,6 +104,23 @@ def health_check() -> dict:
     }
 
 
+@app.get("/api/v1/health")
+def anchorgrid_platform_health() -> dict:
+    return {
+        "status": "ok",
+        "version": "1.0.0",
+        "environment": os.getenv("ENVIRONMENT", "public-intake"),
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "services": {
+            "api": "ready",
+            "anchorgrid": "ready",
+            "usage_guard": "ready",
+            "control_plane": "private",
+            "runtime_state": "private",
+        },
+    }
+
+
 def format_pl_time(value: str | None) -> str:
     raw = (value or "").strip()
     if not raw:
@@ -127,6 +153,19 @@ class AnalyzePaidRequest(BaseModel):
     price_per_kwh: Optional[float] = None
     pv_power_kw: Optional[float] = None
     pv_monthly_production_kwh: Optional[float] = None
+
+
+class AnchorGridPlatformRequest(BaseModel):
+    soc: float
+    t_cell: float
+    t_amb: float
+    u_requested: float
+    hvac: bool = False
+    direction: str = "DISCHARGE"
+    horizon: int = 15
+    price: Optional[float] = None
+    api_key: Optional[str] = None
+    case_id: Optional[str] = None
 
 
 def run_analysis(text: str, email: str, base_url: str) -> dict:
@@ -1100,6 +1139,182 @@ def anchorgrid_dump(result) -> dict:
     if hasattr(result, "model_dump"):
         return result.model_dump()
     return result.dict()
+
+
+def _valid_anchorgrid_api_key(api_key: str | None) -> bool:
+    key = (api_key or "").strip()
+    return bool(key and key in ANCHORGRID_API_KEYS)
+
+
+def _anchorgrid_client_id(request: Request) -> str:
+    forwarded_for = request.headers.get("x-forwarded-for", "")
+    ip = forwarded_for.split(",")[0].strip()
+    if not ip and request.client:
+        ip = request.client.host
+    user_agent = request.headers.get("user-agent", "unknown")
+    raw = f"{ip or 'unknown'}|{user_agent}"
+    digest = hashlib.sha256(raw.encode("utf-8")).hexdigest()[:16]
+    return f"client_{digest}"
+
+
+def _read_anchorgrid_usage() -> dict:
+    if not ANCHORGRID_USAGE_PATH.exists():
+        return {}
+    try:
+        return json.loads(ANCHORGRID_USAGE_PATH.read_text(encoding="utf-8"))
+    except json.JSONDecodeError:
+        return {}
+
+
+def _write_anchorgrid_usage(data: dict) -> None:
+    ANCHORGRID_USAGE_PATH.parent.mkdir(parents=True, exist_ok=True)
+    ANCHORGRID_USAGE_PATH.write_text(
+        json.dumps(data, ensure_ascii=False, indent=2),
+        encoding="utf-8",
+    )
+
+
+def enforce_anchorgrid_usage(
+    request: Request,
+    api_key: str | None,
+    *,
+    increment: bool = True,
+) -> dict:
+    api_key_valid = _valid_anchorgrid_api_key(api_key)
+    if api_key_valid:
+        key_digest = hashlib.sha256(api_key.encode("utf-8")).hexdigest()[:10]
+        return {
+            "client_id": f"api_key_{key_digest}",
+            "api_key_valid": True,
+            "free_limit": None,
+            "usage_count": 0,
+            "remaining": ANCHORGRID_FREE_LIMIT,
+        }
+
+    client_id = _anchorgrid_client_id(request)
+    usage_data = _read_anchorgrid_usage()
+    current = int(usage_data.get(client_id, {}).get("usage_count", 0))
+
+    if current >= ANCHORGRID_FREE_LIMIT:
+        raise HTTPException(
+            status_code=402,
+            detail=(
+                "Free AnchorGrid analysis limit exceeded. "
+                "API key required. Contact kontakt@tdkproservice.pl."
+            ),
+        )
+
+    usage_count = current + 1 if increment else current
+    now = datetime.now(timezone.utc).isoformat()
+    usage_data[client_id] = {
+        "usage_count": usage_count,
+        "first_seen_at": usage_data.get(client_id, {}).get("first_seen_at", now),
+        "last_seen_at": now,
+    }
+    if increment:
+        _write_anchorgrid_usage(usage_data)
+
+    return {
+        "client_id": client_id,
+        "api_key_valid": False,
+        "free_limit": ANCHORGRID_FREE_LIMIT,
+        "usage_count": usage_count,
+        "remaining": max(ANCHORGRID_FREE_LIMIT - usage_count, 0),
+    }
+
+
+def _anchorgrid_platform_input(data: AnchorGridPlatformRequest) -> BessInput:
+    return BessInput(
+        soc=data.soc,
+        t_cell=data.t_cell,
+        t_amb=data.t_amb,
+        u=data.u_requested,
+        hvac=data.hvac,
+        direction=data.direction,
+        horizon_minutes=data.horizon,
+        price=data.price,
+    )
+
+
+def _anchorgrid_platform_response(
+    result: dict,
+    usage: dict | None,
+    *,
+    request_id: str | None = None,
+) -> dict:
+    return {
+        "state": result["state"],
+        "execution_mode": result["execution_mode"],
+        "recommended_u_safe": result["recommended_u_safe"],
+        "recommended_u_safe_value": result["recommended_u_safe_value"],
+        "predicted_max_temp": result["predicted_max_temp"],
+        "forecast_confidence": result["forecast_confidence"],
+        "forecast_confidence_score": result["forecast_confidence_score"],
+        "tension": result["tension"],
+        "economics_net_value_pln": result.get("economics", {}).get("net_value_pln", 0.0),
+        "warnings": result.get("warnings", []),
+        "decision": result["decision"],
+        "forecast": result.get("forecast", {}),
+        "advisory_only": result["advisory_only"],
+        "disclaimer": result["disclaimer"],
+        "usage": usage,
+        "request_id": request_id or uuid.uuid4().hex,
+        "api_version": "v1",
+    }
+
+
+def _anchorgrid_platform_report_text(result: dict, usage: dict | None) -> str:
+    usage_lines = []
+    if usage:
+        if usage["api_key_valid"]:
+            usage_lines.append("Dostęp: klucz API aktywny")
+        else:
+            usage_lines.append(
+                f"Darmowe analizy: {usage['usage_count']}/{usage['free_limit']}"
+            )
+            usage_lines.append(f"Pozostało: {usage['remaining']}")
+
+    return (
+        anchorgrid_result_text(result)
+        + "\n\n"
+        + "TDK Energy Intelligence Platform\n"
+        + "Operator approval required: true\n"
+        + "Autonomous action: false\n"
+        + "\n".join(usage_lines)
+    )
+
+
+@app.post("/api/v1/analyze")
+def anchorgrid_platform_analyze(
+    data: AnchorGridPlatformRequest,
+    request: Request,
+) -> dict:
+    usage = enforce_anchorgrid_usage(request, data.api_key)
+    result = analyze_bess(_anchorgrid_platform_input(data))
+    payload = anchorgrid_dump(result)
+    return _anchorgrid_platform_response(payload, usage)
+
+
+@app.post("/api/v1/analyze/pdf")
+def anchorgrid_platform_analyze_pdf(
+    data: AnchorGridPlatformRequest,
+    request: Request,
+) -> Response:
+    usage = enforce_anchorgrid_usage(request, data.api_key)
+    result = analyze_bess(_anchorgrid_platform_input(data))
+    payload = anchorgrid_dump(result)
+    report_text = _anchorgrid_platform_report_text(payload, usage)
+
+    unique_id = uuid.uuid4().hex[:8]
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    pdf_path = REPORTS_DIR / f"anchorgrid_{timestamp}_{unique_id}.pdf"
+    generate_pdf(report_text, str(pdf_path))
+
+    return Response(
+        content=pdf_path.read_bytes(),
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="{pdf_path.name}"'},
+    )
 
 
 @app.post("/anchorgrid/analyze")

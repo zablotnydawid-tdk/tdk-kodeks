@@ -26,6 +26,7 @@ data/reports/*.txt
 data/reports/*.json
 data/reports/*.md
 data/uploads/
+data/anchorgrid_usage.json
 data/acpc.db
 data/vma/*.json
 data/vma/*.md
@@ -47,11 +48,17 @@ dist/
 *.spec
 
 # Logs / temporary files
+logs/
 *.log
 *.tmp
 *.temp
 .DS_Store
 Thumbs.db
+
+# Local backup/runtime snapshots
+*.bak_*
+LOCAL_HOUSE_PASS_*.txt
+agent_runtime/
 
 # Frontend / Node if added locally
 node_modules/
