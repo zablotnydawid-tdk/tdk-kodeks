@@ -251,6 +251,7 @@ class AssistantIntakeResponse(BaseModel):
     message: str
     next_action: str
     mail_status: str
+    mail_error_type: Optional[str] = None
     public_status_url: str
 
 
@@ -1672,6 +1673,7 @@ def assistant_intake(payload: AssistantIntakeRequest, request_obj: Request) -> A
     order_store.create_order(order)
 
     mail_status = "MAIL_NOT_CONFIRMED"
+    mail_error_type = None
     try:
         panel_hint = f"Zgłoszenie asystenta: {order_id}"
         send_lead_notification(
@@ -1694,6 +1696,7 @@ def assistant_intake(payload: AssistantIntakeRequest, request_obj: Request) -> A
         update_order_mail_status(order_id, "lead_mail", "MAIL_SENT", "Powiadomienie operatora zostało wysłane.")
         mail_status = "MAIL_SENT"
     except Exception as exc:
+        mail_error_type = type(exc).__name__
         log_mail_failure(LEAD_NOTIFY_EMAIL, exc)
         update_order_mail_status(
             order_id,
@@ -1710,6 +1713,7 @@ def assistant_intake(payload: AssistantIntakeRequest, request_obj: Request) -> A
         message="Sprawa została zapisana i czeka na weryfikację operatora TDK&ProService.",
         next_action="Zapisz numer sprawy i sprawdzaj status na /status. Operator może poprosić o dodatkowe dane.",
         mail_status=mail_status,
+        mail_error_type=mail_error_type,
         public_status_url=f"https://tdkproservice.pl/status?case_id={order_id}",
     )
 
