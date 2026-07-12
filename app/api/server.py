@@ -11,6 +11,8 @@ from email.message import EmailMessage
 from pathlib import Path
 from typing import Optional
 from urllib.parse import unquote
+from urllib.request import Request as UrlRequest, urlopen
+from urllib.error import HTTPError, URLError
 from zoneinfo import ZoneInfo
 
 from dotenv import load_dotenv
@@ -75,6 +77,11 @@ LEAD_NOTIFY_EMAIL = os.getenv(
     "LEAD_NOTIFY_EMAIL",
     "kontakt@tdkproservice.pl"
 )
+
+EMAIL_DELIVERY_CHANNEL = os.getenv("EMAIL_DELIVERY_CHANNEL", "smtp").strip().lower()
+RESEND_API_KEY = os.getenv("RESEND_API_KEY", "").strip()
+EMAIL_API_FROM = os.getenv("EMAIL_API_FROM", "TDK&ProService <kontakt@tdkproservice.pl>").strip()
+EMAIL_REPLY_TO = os.getenv("EMAIL_REPLY_TO", "kontakt@tdkproservice.pl").strip()
 
 # =========================
 # ADMIN
@@ -417,7 +424,48 @@ def _smtp_config() -> dict:
     }
 
 
-def _send_message(message: EmailMessage) -> None:
+def _message_text_content(message: EmailMessage) -> str:
+    if message.is_multipart():
+        for part in message.walk():
+            if part.get_content_type() == "text/plain" and not part.get_filename():
+                return part.get_content()
+        return ""
+    return message.get_content()
+
+
+def _send_message_via_resend(message: EmailMessage) -> None:
+    if not RESEND_API_KEY:
+        raise RuntimeError("RESEND_API_KEY is not configured")
+    if list(message.iter_attachments()):
+        raise RuntimeError("Resend adapter does not handle attachments yet")
+
+    payload = {
+        "from": EMAIL_API_FROM,
+        "to": [message["To"]],
+        "reply_to": [EMAIL_REPLY_TO],
+        "subject": message["Subject"],
+        "text": _message_text_content(message),
+    }
+    request = UrlRequest(
+        "https://api.resend.com/emails",
+        data=json.dumps(payload).encode("utf-8"),
+        headers={
+            "Authorization": f"Bearer {RESEND_API_KEY}",
+            "Content-Type": "application/json",
+        },
+        method="POST",
+    )
+    try:
+        with urlopen(request, timeout=20) as response:
+            if response.status >= 300:
+                raise RuntimeError(f"Resend API returned HTTP {response.status}")
+    except HTTPError as exc:
+        raise RuntimeError(f"Resend API returned HTTP {exc.code}") from exc
+    except URLError as exc:
+        raise RuntimeError("Resend API request failed") from exc
+
+
+def _send_message_smtp(message: EmailMessage) -> None:
     config = _smtp_config()
 
     missing = []
@@ -467,6 +515,16 @@ def _send_message(message: EmailMessage) -> None:
     if last_error:
         raise last_error
     raise RuntimeError("SMTP delivery failed")
+
+
+def _send_message(message: EmailMessage) -> None:
+    if EMAIL_DELIVERY_CHANNEL in {"resend", "https", "api"}:
+        _send_message_via_resend(message)
+        return
+    if EMAIL_DELIVERY_CHANNEL == "auto" and RESEND_API_KEY:
+        _send_message_via_resend(message)
+        return
+    _send_message_smtp(message)
 
 
 def send_email_with_pdf(to_email: str, pdf_path: str) -> tuple[bool, str]:
@@ -520,6 +578,7 @@ def send_lead_notification(
     message["Subject"] = "Nowy lead KODEKS — TDK&ProService"
     message["From"] = config["from_email"]
     message["To"] = LEAD_NOTIFY_EMAIL
+    message["Reply-To"] = EMAIL_REPLY_TO
 
     message.set_content(
         "Nowy lead z formularza KODEKS.\n\n"
