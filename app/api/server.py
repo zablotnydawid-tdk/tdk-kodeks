@@ -1,4 +1,5 @@
 import hashlib
+import html
 import json
 import os
 import smtplib
@@ -15,6 +16,7 @@ from zoneinfo import ZoneInfo
 from dotenv import load_dotenv
 load_dotenv(r'C:\KODEKS\.env')
 from fastapi import FastAPI, Form, HTTPException, Request
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, Response
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
@@ -54,6 +56,17 @@ ANCHORGRID_RATE_LIMIT_WINDOW_SEC = int(
 ANCHORGRID_RATE_LIMIT_ANALYZE = int(os.getenv("ANCHORGRID_RATE_LIMIT_ANALYZE", "30"))
 ANCHORGRID_RATE_LIMIT_PDF = int(os.getenv("ANCHORGRID_RATE_LIMIT_PDF", "10"))
 _RATE_LIMIT_BUCKETS: dict[str, dict[str, float]] = {}
+ASSISTANT_RATE_LIMIT = int(os.getenv("ASSISTANT_RATE_LIMIT", "20"))
+ASSISTANT_MAX_MESSAGES = int(os.getenv("ASSISTANT_MAX_MESSAGES", "32"))
+ASSISTANT_MAX_MESSAGE_CHARS = int(os.getenv("ASSISTANT_MAX_MESSAGE_CHARS", "1200"))
+ASSISTANT_ALLOWED_ORIGINS = [
+    origin.strip()
+    for origin in os.getenv(
+        "ASSISTANT_ALLOWED_ORIGINS",
+        "https://tdkproservice.pl,https://www.tdkproservice.pl,http://localhost:3000,http://127.0.0.1:3000",
+    ).split(",")
+    if origin.strip()
+]
 
 order_store = FileSystemOrderStore()
 PL_TZ = ZoneInfo("Europe/Warsaw")
@@ -108,6 +121,13 @@ app = FastAPI(
     docs_url="/docs" if DOCS_ENABLED else None,
     redoc_url="/redoc" if DOCS_ENABLED else None,
     openapi_url="/openapi.json" if DOCS_ENABLED else None,
+)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=ASSISTANT_ALLOWED_ORIGINS,
+    allow_credentials=False,
+    allow_methods=["GET", "POST", "OPTIONS"],
+    allow_headers=["Content-Type"],
 )
 app.mount("/reports", StaticFiles(directory=str(REPORTS_DIR)), name="reports")
 
@@ -199,6 +219,48 @@ class AnalyzePaidRequest(BaseModel):
     price_per_kwh: Optional[float] = None
     pv_power_kw: Optional[float] = None
     pv_monthly_production_kwh: Optional[float] = None
+
+
+
+class AssistantMessage(BaseModel):
+    role: str
+    content: str
+
+
+class AssistantIntakeRequest(BaseModel):
+    name: str
+    email: str
+    phone: str
+    city: Optional[str] = None
+    category: str
+    summary: str
+    completeness: str
+    conversation: list[AssistantMessage]
+    collected_data: dict = {}
+    safety_flags: list[str] = []
+    missing_data: list[str] = []
+    consent_contact: bool
+    consent_data: bool
+    source_page: str = "tdk_assistant_widget"
+
+
+class AssistantIntakeResponse(BaseModel):
+    case_id: str
+    status: str
+    public_label: str
+    message: str
+    next_action: str
+    mail_status: str
+    public_status_url: str
+
+
+class PublicCaseStatusResponse(BaseModel):
+    case_id: str
+    status: str
+    public_label: str
+    created_at: str
+    updated_at: str
+    message: str
 
 
 class AnchorGridPlatformRequest(BaseModel):
@@ -1467,6 +1529,253 @@ def anchorgrid_analyze_form(
     )
 
 
+
+def _clip_text(value: str, max_chars: int) -> str:
+    text = (value or "").strip()
+    if len(text) <= max_chars:
+        return text
+    return text[: max_chars - 1].rstrip() + "…"
+
+
+def _sanitize_assistant_messages(messages: list[AssistantMessage]) -> list[dict]:
+    safe_messages = []
+    for item in messages[:ASSISTANT_MAX_MESSAGES]:
+        role = item.role if item.role in {"assistant", "client", "system"} else "client"
+        safe_messages.append({
+            "role": role,
+            "content": _clip_text(item.content, ASSISTANT_MAX_MESSAGE_CHARS),
+        })
+    return safe_messages
+
+
+def _assistant_public_label(status: str) -> tuple[str, str]:
+    labels = {
+        "waiting_for_operator_review": (
+            "Zgłoszenie przyjęte",
+            "Sprawa została przyjęta i czeka na weryfikację operatora TDK&ProService.",
+        ),
+        "reviewing": (
+            "Weryfikacja operatora",
+            "Operator analizuje dane i może poprosić o dodatkowe informacje.",
+        ),
+        "waiting_for_client": (
+            "Czekamy na dane",
+            "Do dalszej oceny potrzebne są dodatkowe dane od klienta.",
+        ),
+        "diagnostic_proposed": (
+            "Propozycja diagnostyki",
+            "Na podstawie zgłoszenia można przejść do dalszej diagnostyki po kontakcie z operatorem.",
+        ),
+        "closed": (
+            "Zamknięte",
+            "Sprawa została zamknięta. W razie pytań skontaktuj się z TDK&ProService.",
+        ),
+        "waiting_for_payment": (
+            "Zgłoszenie przyjęte",
+            "Zgłoszenie zostało zapisane i czeka na weryfikację operatora.",
+        ),
+    }
+    return labels.get(status, ("Status sprawy", "Sprawa jest obsługiwana przez TDK&ProService."))
+
+
+def _assistant_order_description(payload: AssistantIntakeRequest) -> str:
+    lines = [
+        "TDK&ProService assistant intake",
+        f"Category: {payload.category}",
+        f"Completeness: {payload.completeness}",
+        f"City: {payload.city or 'not provided'}",
+        f"Source page: {payload.source_page}",
+        f"Consent contact: {'yes' if payload.consent_contact else 'no'}",
+        f"Consent data: {'yes' if payload.consent_data else 'no'}",
+        "",
+        "Summary:",
+        _clip_text(payload.summary, 1400),
+        "",
+        "Missing data:",
+        ", ".join(payload.missing_data[:12]) or "none declared",
+        "",
+        "Safety flags:",
+        ", ".join(payload.safety_flags[:12]) or "none",
+        "",
+        "Conversation:",
+    ]
+    for item in _sanitize_assistant_messages(payload.conversation):
+        lines.append(f"[{item['role']}] {item['content']}")
+    return _clip_text("\n".join(lines), 9000)
+
+
+def _assistant_order_to_public_status(order: dict) -> PublicCaseStatusResponse:
+    status = order.get("status", "waiting_for_operator_review")
+    public_label, message = _assistant_public_label(status)
+    created_at = order.get("created_at") or datetime.now(timezone.utc).isoformat()
+    updated_at = order.get("updated_at") or order.get("lead_mail_updated_at") or created_at
+    return PublicCaseStatusResponse(
+        case_id=order.get("order_id", ""),
+        status=status,
+        public_label=public_label,
+        created_at=created_at,
+        updated_at=updated_at,
+        message=message,
+    )
+
+
+@app.post("/api/v1/assistant/intake", response_model=AssistantIntakeResponse)
+def assistant_intake(payload: AssistantIntakeRequest, request_obj: Request) -> AssistantIntakeResponse:
+    enforce_anchorgrid_rate_limit(request_obj, "assistant_intake", ASSISTANT_RATE_LIMIT)
+
+    if not payload.consent_contact or not payload.consent_data:
+        raise HTTPException(status_code=400, detail="Zgoda na kontakt i przetwarzanie danych jest wymagana przed utworzeniem sprawy.")
+    if len(payload.conversation) < 2:
+        raise HTTPException(status_code=400, detail="Rozmowa jest zbyt krótka, aby utworzyć sprawę.")
+    if len(payload.conversation) > ASSISTANT_MAX_MESSAGES:
+        raise HTTPException(status_code=400, detail="Rozmowa przekroczyła limit długości. Skróć zgłoszenie i spróbuj ponownie.")
+
+    order_id = create_order_id()
+    now = datetime.now(timezone.utc).isoformat()
+    conversation = _sanitize_assistant_messages(payload.conversation)
+    description = _assistant_order_description(payload)
+
+    numeric = payload.collected_data if isinstance(payload.collected_data, dict) else {}
+    order = {
+        "order_id": order_id,
+        "case_id": order_id,
+        "source": "tdk_assistant_widget",
+        "status": "waiting_for_operator_review",
+        "operator_stage": "NEW",
+        "created_at": now,
+        "updated_at": now,
+        "name": payload.name.strip(),
+        "email": payload.email.strip(),
+        "phone": payload.phone.strip(),
+        "city": (payload.city or "").strip(),
+        "message": _clip_text(payload.summary, 1800),
+        "description": description,
+        "assistant_category": payload.category,
+        "assistant_completeness": payload.completeness,
+        "assistant_missing_data": payload.missing_data[:20],
+        "assistant_safety_flags": payload.safety_flags[:20],
+        "assistant_collected_data": numeric,
+        "assistant_conversation": conversation,
+        "consent_contact": payload.consent_contact,
+        "consent_data": payload.consent_data,
+        "amount": "operator review",
+        "pdf_url": None,
+        "pdf_path": None,
+        "base_url": str(request_obj.base_url).rstrip("/"),
+        "lead_mail_status": "MAIL_PENDING",
+        "client_mail_status": "NOT_APPLICABLE",
+        "consumption_kwh": float(numeric.get("monthly_consumption_kwh") or 0),
+        "price_per_kwh": float(numeric.get("price_per_kwh") or 0),
+        "pv_power_kw": float(numeric.get("pv_power_kwp") or 0),
+        "pv_monthly_production_kwh": float(numeric.get("monthly_production_kwh") or 0),
+    }
+    order_store.create_order(order)
+
+    mail_status = "MAIL_NOT_CONFIRMED"
+    try:
+        panel_hint = f"Zgłoszenie asystenta: {order_id}"
+        send_lead_notification(
+            client_email=order["email"],
+            consumption_kwh=order["consumption_kwh"],
+            price_per_kwh=order["price_per_kwh"],
+            pv_power_kw=order["pv_power_kw"],
+            pv_monthly_production_kwh=order["pv_monthly_production_kwh"],
+            pdf_url=panel_hint,
+            client_name=order["name"],
+            client_phone=order["phone"],
+            client_message=(
+                f"Kategoria: {payload.category}\n"
+                f"Kompletność: {payload.completeness}\n"
+                f"Miasto: {payload.city or 'brak'}\n\n"
+                f"Podsumowanie:\n{_clip_text(payload.summary, 1100)}\n\n"
+                "Pełna rozmowa jest zapisana w panelu/operator store."
+            ),
+        )
+        update_order_mail_status(order_id, "lead_mail", "MAIL_SENT", "Powiadomienie operatora zostało wysłane.")
+        mail_status = "MAIL_SENT"
+    except Exception as exc:
+        log_mail_failure(LEAD_NOTIFY_EMAIL, exc)
+        update_order_mail_status(
+            order_id,
+            "lead_mail",
+            "MAIL_NOT_CONFIRMED",
+            "Powiadomienie e-mail nie zostało potwierdzone. Sprawa jest zapisana w panelu.",
+            exc,
+        )
+
+    return AssistantIntakeResponse(
+        case_id=order_id,
+        status="waiting_for_operator_review",
+        public_label="Zgłoszenie przyjęte",
+        message="Sprawa została zapisana i czeka na weryfikację operatora TDK&ProService.",
+        next_action="Zapisz numer sprawy i sprawdzaj status na /status. Operator może poprosić o dodatkowe dane.",
+        mail_status=mail_status,
+        public_status_url=f"https://tdkproservice.pl/status?case_id={order_id}",
+    )
+
+
+@app.get("/api/v1/cases/{case_id}/public-status", response_model=PublicCaseStatusResponse)
+def public_case_status(case_id: str) -> PublicCaseStatusResponse:
+    try:
+        order = order_store.get_order(case_id)
+    except Exception:
+        raise HTTPException(status_code=404, detail="Nie znaleziono sprawy")
+    return _assistant_order_to_public_status(order)
+
+
+@app.get("/admin/order/{order_id}", response_class=HTMLResponse)
+def admin_order_detail(order_id: str, admin_key: str = "") -> str:
+    if not verify_admin_key(admin_key):
+        return html_page("Brak dostępu", "<h1>Brak dostępu</h1><p>Podaj poprawny admin_key.</p>")
+    try:
+        order = order_store.get_order(order_id)
+    except Exception as exc:
+        return html_page("Nie znaleziono zgłoszenia", f"<h1>Nie znaleziono zgłoszenia</h1><p>{html.escape(str(exc))}</p>")
+
+    conversation_rows = ""
+    for item in order.get("assistant_conversation", []):
+        role = html.escape(str(item.get("role", "client")))
+        content = html.escape(str(item.get("content", "")))
+        conversation_rows += f"<div style='margin:10px 0;padding:12px;border-radius:10px;background:#0f1115;border:1px solid #2b3240;'><strong>{role}</strong><br><span style='white-space:pre-wrap;'>{content}</span></div>"
+
+    fields = [
+        ("Numer sprawy", order.get("order_id", "")),
+        ("Źródło", order.get("source", "")),
+        ("Status", order.get("status", "")),
+        ("Etap operatora", order.get("operator_stage", "")),
+        ("Kategoria", order.get("assistant_category", "")),
+        ("Kompletność", order.get("assistant_completeness", "")),
+        ("Imię/firma", order.get("name", "")),
+        ("Email", order.get("email", "")),
+        ("Telefon", order.get("phone", "")),
+        ("Miasto", order.get("city", "")),
+        ("Mail operatora", order.get("lead_mail_status", "")),
+        ("Flagi bezpieczeństwa", ", ".join(order.get("assistant_safety_flags", []))),
+        ("Brakujące dane", ", ".join(order.get("assistant_missing_data", []))),
+    ]
+    field_html = "".join(
+        f"<tr><th style='text-align:left;padding:10px;border-top:1px solid #2b3240;color:#8fbcff;'>{html.escape(label)}</th><td style='padding:10px;border-top:1px solid #2b3240;'>{html.escape(str(value))}</td></tr>"
+        for label, value in fields
+    )
+    summary = html.escape(str(order.get("message", "")))
+    description = html.escape(str(order.get("description", "")))
+
+    return html_page(
+        f"Zgłoszenie {html.escape(order_id)}",
+        f"""
+        <h1>Zgłoszenie {html.escape(order_id)}</h1>
+        <p><a style="color:#4d95ff;" href="/admin/orders?admin_key={html.escape(admin_key)}">Wróć do panelu</a></p>
+        <table style="width:100%;border-collapse:collapse;color:#d8dee9;background:#10141a;border:1px solid #2b3240;border-radius:12px;overflow:hidden;">{field_html}</table>
+        <h2>Podsumowanie asystenta</h2>
+        <pre style="white-space:pre-wrap;background:#10141a;border:1px solid #2b3240;border-radius:12px;padding:16px;color:#d8dee9;">{summary}</pre>
+        <h2>Opis techniczny / zapis sprawy</h2>
+        <pre style="white-space:pre-wrap;background:#10141a;border:1px solid #2b3240;border-radius:12px;padding:16px;color:#d8dee9;">{description}</pre>
+        <h2>Rozmowa</h2>
+        {conversation_rows or '<p style="color:#b0b7c3;">Brak zapisu rozmowy.</p>'}
+        """,
+    )
+
+
 def status_badge(status: str) -> str:
     styles = {
         "waiting_for_payment": ("Oczekuje na płatność", "#241d0f", "#7a5a1d", "#f4c76b"),
@@ -1698,16 +2007,23 @@ def admin_orders(admin_key: str = "") -> str:
                 retry_html = f"""
                 <a href="/admin/retry-mail/{order_id}?admin_key={admin_key}" style="display:inline-block;margin-top:8px;padding:9px 12px;border-radius:9px;background:#241d0f;border:1px solid #7a5a1d;color:#f4c76b;font-weight:bold;text-decoration:none;white-space:nowrap;">Ponów mail</a>
                 """
+            details_link = f"""
+                <a href="/admin/order/{order_id}?admin_key={admin_key}" style="display:inline-block;margin-top:8px;padding:10px 14px;border-radius:10px;border:1px solid #394252;color:#d8dee9;font-weight:bold;text-decoration:none;white-space:nowrap;">Szczegóły</a>
+                """
             if pdf_url:
                 action = f"""
                 <a href="{pdf_url}" target="_blank" style="display:inline-block;padding:11px 15px;border-radius:10px;background:#0f241b;border:1px solid #245c3a;color:#7ee787;font-weight:bold;text-decoration:none;white-space:nowrap;">Pobierz PDF</a>
                 {retry_html}
+                {details_link}
                 """
+            elif order.get("source") == "tdk_assistant_widget":
+                action = details_link
             else:
                 action = f"""
                 <a href="/admin/generate/{order_id}?admin_key={admin_key}" style="display:inline-block;padding:12px 18px;border-radius:11px;background:#2f7cf6;color:white;font-weight:bold;text-decoration:none;box-shadow:0 12px 28px rgba(47,124,246,0.28);white-space:nowrap;">
                     GENERUJ
                 </a>
+                {details_link}
                 """
 
             rows += f"""
