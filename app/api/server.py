@@ -435,35 +435,38 @@ def _send_message(message: EmailMessage) -> None:
 
     context = ssl._create_unverified_context()  # TDK LOCAL FIX: nazwa.pl self-signed chain
 
-    def send_via_ssl(port: int) -> None:
-        with smtplib.SMTP_SSL(
-            config["host"],
-            port,
-            context=context,
-            timeout=15,
-        ) as smtp:
-            smtp.login(config["user"], config["password"])
-            smtp.send_message(message)
+    fallback_hosts = []
+    for host in [config["host"], "smtp.nazwa.pl"]:
+        if host and host not in fallback_hosts:
+            fallback_hosts.append(host)
 
-    def send_via_starttls(port: int) -> None:
-        with smtplib.SMTP(
-            config["host"],
-            port,
-            timeout=15,
-        ) as smtp:
-            smtp.starttls(context=context)
-            smtp.login(config["user"], config["password"])
-            smtp.send_message(message)
-
+    attempts = []
     if config["port"] == 465:
-        try:
-            send_via_ssl(465)
-            return
-        except TimeoutError:
-            send_via_starttls(587)
-            return
+        attempts.extend([("ssl", 465), ("starttls", 587)])
+    else:
+        attempts.extend([("starttls", config["port"]), ("ssl", 465), ("starttls", 587)])
 
-    send_via_starttls(config["port"])
+    last_error: Exception | None = None
+    for host in fallback_hosts:
+        for mode, port in attempts:
+            try:
+                if mode == "ssl":
+                    with smtplib.SMTP_SSL(host, port, context=context, timeout=12) as smtp:
+                        smtp.login(config["user"], config["password"])
+                        smtp.send_message(message)
+                        return
+                with smtplib.SMTP(host, port, timeout=12) as smtp:
+                    smtp.starttls(context=context)
+                    smtp.login(config["user"], config["password"])
+                    smtp.send_message(message)
+                    return
+            except TimeoutError as exc:
+                last_error = exc
+                continue
+
+    if last_error:
+        raise last_error
+    raise RuntimeError("SMTP delivery failed")
 
 
 def send_email_with_pdf(to_email: str, pdf_path: str) -> tuple[bool, str]:
