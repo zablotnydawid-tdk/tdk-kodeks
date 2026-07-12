@@ -435,24 +435,35 @@ def _send_message(message: EmailMessage) -> None:
 
     context = ssl._create_unverified_context()  # TDK LOCAL FIX: nazwa.pl self-signed chain
 
-    if config["port"] == 465:
+    def send_via_ssl(port: int) -> None:
         with smtplib.SMTP_SSL(
             config["host"],
-            config["port"],
+            port,
             context=context,
             timeout=15,
         ) as smtp:
             smtp.login(config["user"], config["password"])
             smtp.send_message(message)
-    else:
+
+    def send_via_starttls(port: int) -> None:
         with smtplib.SMTP(
             config["host"],
-            config["port"],
+            port,
             timeout=15,
         ) as smtp:
             smtp.starttls(context=context)
             smtp.login(config["user"], config["password"])
             smtp.send_message(message)
+
+    if config["port"] == 465:
+        try:
+            send_via_ssl(465)
+            return
+        except TimeoutError:
+            send_via_starttls(587)
+            return
+
+    send_via_starttls(config["port"])
 
 
 def send_email_with_pdf(to_email: str, pdf_path: str) -> tuple[bool, str]:
