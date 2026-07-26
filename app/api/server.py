@@ -17,7 +17,7 @@ from zoneinfo import ZoneInfo
 
 from dotenv import load_dotenv
 load_dotenv(r'C:\KODEKS\.env')
-from fastapi import FastAPI, Form, HTTPException, Request
+from fastapi import BackgroundTasks, FastAPI, Form, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, Response
 from fastapi.staticfiles import StaticFiles
@@ -1693,8 +1693,62 @@ def _assistant_order_to_public_status(order: dict) -> PublicCaseStatusResponse:
     )
 
 
+
+def _deliver_assistant_lead_notification(
+    order_id: str,
+    category: str,
+    completeness: str,
+    city: str,
+    summary: str,
+) -> None:
+    try:
+        order = order_store.get_order(order_id)
+
+        send_lead_notification(
+            client_email=order["email"],
+            consumption_kwh=order["consumption_kwh"],
+            price_per_kwh=order["price_per_kwh"],
+            pv_power_kw=order["pv_power_kw"],
+            pv_monthly_production_kwh=order["pv_monthly_production_kwh"],
+            pdf_url=f"Zgloszenie asystenta: {order_id}",
+            client_name=order["name"],
+            client_phone=order["phone"],
+            client_message=(
+                f"Kategoria: {category}\n"
+                f"Kompletnosc: {completeness}\n"
+                f"Miasto: {city or 'brak'}\n\n"
+                f"Podsumowanie:\n{_clip_text(summary, 1100)}"
+            ),
+        )
+
+        update_order_mail_status(
+            order_id,
+            "lead_mail",
+            "MAIL_SENT",
+            "Powiadomienie operatora zostalo wyslane.",
+        )
+
+    except Exception as exc:
+        log_mail_failure(LEAD_NOTIFY_EMAIL, exc)
+
+        try:
+            update_order_mail_status(
+                order_id,
+                "lead_mail",
+                "MAIL_NOT_CONFIRMED",
+                "Powiadomienie e-mail nie zostalo potwierdzone. Sprawa jest zapisana w panelu.",
+                exc,
+            )
+        except Exception:
+            pass
+
+
 @app.post("/api/v1/assistant/intake", response_model=AssistantIntakeResponse)
-def assistant_intake(payload: AssistantIntakeRequest, request_obj: Request) -> AssistantIntakeResponse:
+def assistant_intake(
+    payload: AssistantIntakeRequest,
+    request_obj: Request,
+    background_tasks: BackgroundTasks,
+) -> AssistantIntakeResponse:
     enforce_anchorgrid_rate_limit(request_obj, "assistant_intake", ASSISTANT_RATE_LIMIT)
 
     if not payload.consent_contact or not payload.consent_data:
@@ -1745,39 +1799,17 @@ def assistant_intake(payload: AssistantIntakeRequest, request_obj: Request) -> A
     }
     order_store.create_order(order)
 
-    mail_status = "MAIL_NOT_CONFIRMED"
+    background_tasks.add_task(
+        _deliver_assistant_lead_notification,
+        order_id,
+        payload.category,
+        payload.completeness,
+        payload.city or "",
+        payload.summary,
+    )
+
+    mail_status = "MAIL_PENDING"
     mail_error_type = None
-    try:
-        panel_hint = f"Zgłoszenie asystenta: {order_id}"
-        send_lead_notification(
-            client_email=order["email"],
-            consumption_kwh=order["consumption_kwh"],
-            price_per_kwh=order["price_per_kwh"],
-            pv_power_kw=order["pv_power_kw"],
-            pv_monthly_production_kwh=order["pv_monthly_production_kwh"],
-            pdf_url=panel_hint,
-            client_name=order["name"],
-            client_phone=order["phone"],
-            client_message=(
-                f"Kategoria: {payload.category}\n"
-                f"Kompletność: {payload.completeness}\n"
-                f"Miasto: {payload.city or 'brak'}\n\n"
-                f"Podsumowanie:\n{_clip_text(payload.summary, 1100)}\n\n"
-                "Pełna rozmowa jest zapisana w panelu/operator store."
-            ),
-        )
-        update_order_mail_status(order_id, "lead_mail", "MAIL_SENT", "Powiadomienie operatora zostało wysłane.")
-        mail_status = "MAIL_SENT"
-    except Exception as exc:
-        mail_error_type = type(exc).__name__
-        log_mail_failure(LEAD_NOTIFY_EMAIL, exc)
-        update_order_mail_status(
-            order_id,
-            "lead_mail",
-            "MAIL_NOT_CONFIRMED",
-            "Powiadomienie e-mail nie zostało potwierdzone. Sprawa jest zapisana w panelu.",
-            exc,
-        )
 
     return AssistantIntakeResponse(
         case_id=order_id,
